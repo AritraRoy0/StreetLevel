@@ -10,6 +10,14 @@ import React, {
   useContext,
 } from "react";
 import Link from "next/link";
+import { MOCK_STOCKS, MOCK_NEWS, INITIAL_PORTFOLIO } from "@/lib/mock-data";
+import {
+  type TabType,
+  type StockItem,
+  type NewsItem,
+  type PortfolioPosition,
+  type AlertRule,
+} from "@/lib/types";
 import {
   Activity,
   ArrowDownRight,
@@ -76,342 +84,7 @@ import {
 } from "lucide-react";
 
 // ============================================================================
-// 1. TYPES & INTERFACES
-// ============================================================================
-
-export type TabType =
-  | "overview"
-  | "watchlist"
-  | "analytics"
-  | "signals"
-  | "portfolio"
-  | "settings";
-
-export interface StockItem {
-  symbol: string;
-  name: string;
-  sector: string;
-  price: number;
-  change: number;
-  changeAmount: number;
-  volume: string;
-  marketCap: string;
-  peRatio: number;
-  high52: number;
-  low52: number;
-  sparkline: number[];
-  signals: {
-    rsi: number;
-    sma50: number;
-    bollinger: "Upper" | "Middle" | "Lower";
-    zScore: number;
-    sentiment: "Bullish" | "Bearish" | "Neutral";
-  };
-}
-
-export interface NewsItem {
-  id: string;
-  title: string;
-  source: string;
-  time: string;
-  category: string;
-  sentiment: "positive" | "negative" | "neutral";
-  relatedSymbol: string;
-}
-
-export interface PortfolioPosition {
-  id: string;
-  symbol: string;
-  shares: number;
-  avgCost: number;
-  currentPrice: number;
-  totalValue: number;
-  unrealizedPl: number;
-  unrealizedPlPercent: number;
-}
-
-export interface AlertRule {
-  id: string;
-  symbol: string;
-  condition: "above" | "below" | "crosses_sma";
-  targetValue: number;
-  active: boolean;
-  createdAt: string;
-}
-
-// ============================================================================
-// 2. MOCK DATA REPOSITORY
-// ============================================================================
-
-const MOCK_STOCKS: StockItem[] = [
-  {
-    symbol: "NVDA",
-    name: "NVIDIA Corporation",
-    sector: "Semiconductors",
-    price: 128.44,
-    change: 2.14,
-    changeAmount: 2.69,
-    volume: "65.4M",
-    marketCap: "$3.16T",
-    peRatio: 74.2,
-    high52: 140.76,
-    low52: 40.86,
-    sparkline: [118, 121, 119, 124, 126, 123, 128],
-    signals: {
-      rsi: 68,
-      sma50: 122.4,
-      bollinger: "Upper",
-      zScore: 2.3,
-      sentiment: "Bullish",
-    },
-  },
-  {
-    symbol: "AAPL",
-    name: "Apple Inc.",
-    sector: "Consumer Electronics",
-    price: 231.09,
-    change: -0.42,
-    changeAmount: -0.98,
-    volume: "42.1M",
-    marketCap: "$3.52T",
-    peRatio: 34.5,
-    high52: 237.23,
-    low52: 165.67,
-    sparkline: [233, 232, 234, 231, 230, 232, 231],
-    signals: {
-      rsi: 54,
-      sma50: 228.1,
-      bollinger: "Middle",
-      zScore: 0.4,
-      sentiment: "Neutral",
-    },
-  },
-  {
-    symbol: "TSLA",
-    name: "Tesla, Inc.",
-    sector: "Automotive & Clean Energy",
-    price: 256.77,
-    change: 1.03,
-    changeAmount: 2.62,
-    volume: "88.9M",
-    marketCap: "$815.4B",
-    peRatio: 92.1,
-    high52: 271.0,
-    low52: 138.8,
-    sparkline: [249, 251, 253, 250, 254, 255, 257],
-    signals: {
-      rsi: 72,
-      sma50: 242.0,
-      bollinger: "Upper",
-      zScore: 2.8,
-      sentiment: "Bullish",
-    },
-  },
-  {
-    symbol: "MSFT",
-    name: "Microsoft Corporation",
-    sector: "Software & Cloud",
-    price: 441.2,
-    change: 0.18,
-    changeAmount: 0.79,
-    volume: "19.3M",
-    marketCap: "$3.28T",
-    peRatio: 38.9,
-    high52: 468.35,
-    low52: 309.45,
-    sparkline: [438, 440, 439, 441, 440, 442, 441],
-    signals: {
-      rsi: 51,
-      sma50: 439.5,
-      bollinger: "Middle",
-      zScore: 0.1,
-      sentiment: "Neutral",
-    },
-  },
-  {
-    symbol: "AMZN",
-    name: "Amazon.com, Inc.",
-    sector: "E-Commerce & Cloud",
-    price: 186.5,
-    change: -1.35,
-    changeAmount: -2.55,
-    volume: "35.2M",
-    marketCap: "$1.94T",
-    peRatio: 51.4,
-    high52: 201.2,
-    low52: 118.35,
-    sparkline: [190, 189, 191, 188, 187, 185, 186.5],
-    signals: {
-      rsi: 42,
-      sma50: 189.2,
-      bollinger: "Lower",
-      zScore: -1.1,
-      sentiment: "Bearish",
-    },
-  },
-  {
-    symbol: "GOOGL",
-    name: "Alphabet Inc.",
-    sector: "Internet & Services",
-    price: 179.3,
-    change: 0.65,
-    changeAmount: 1.16,
-    volume: "22.8M",
-    marketCap: "$2.22T",
-    peRatio: 27.8,
-    high52: 191.75,
-    low52: 120.21,
-    sparkline: [176, 177, 178, 177, 179, 178, 179.3],
-    signals: {
-      rsi: 59,
-      sma50: 177.0,
-      bollinger: "Middle",
-      zScore: 0.9,
-      sentiment: "Bullish",
-    },
-  },
-  {
-    symbol: "AMD",
-    name: "Advanced Micro Devices",
-    sector: "Semiconductors",
-    price: 154.2,
-    change: 1.82,
-    changeAmount: 2.76,
-    volume: "48.1M",
-    marketCap: "$249.2B",
-    peRatio: 115.4,
-    high52: 227.3,
-    low52: 95.5,
-    sparkline: [148, 150, 151, 152, 151, 153, 154.2],
-    signals: {
-      rsi: 63,
-      sma50: 150.1,
-      bollinger: "Upper",
-      zScore: 1.7,
-      sentiment: "Bullish",
-    },
-  },
-  {
-    symbol: "PLTR",
-    name: "Palantir Technologies Inc.",
-    sector: "Software & AI",
-    price: 29.85,
-    change: 3.21,
-    changeAmount: 0.93,
-    volume: "74.6M",
-    marketCap: "$66.8B",
-    peRatio: 82.0,
-    high52: 31.5,
-    low52: 13.68,
-    sparkline: [27, 27.5, 28, 28.5, 29, 29.2, 29.85],
-    signals: {
-      rsi: 78,
-      sma50: 26.5,
-      bollinger: "Upper",
-      zScore: 3.1,
-      sentiment: "Bullish",
-    },
-  },
-];
-
-const MOCK_NEWS: NewsItem[] = [
-  {
-    id: "news-1",
-    title:
-      "NVIDIA Announces Next-Generation Blackwell Architecture Deployment Schedules",
-    source: "Bloomberg",
-    time: "12m ago",
-    category: "Semiconductors",
-    sentiment: "positive",
-    relatedSymbol: "NVDA",
-  },
-  {
-    id: "news-2",
-    title:
-      "Federal Reserve Signals Potential Rate Cut Amid Cooling Inflation Metrics",
-    source: "Wall Street Journal",
-    time: "38m ago",
-    category: "Macroeconomics",
-    sentiment: "positive",
-    relatedSymbol: "SPY",
-  },
-  {
-    id: "news-3",
-    title:
-      "Tesla Expands Full Self-Driving Beta Trials Across European Regulatory Markets",
-    source: "Reuters",
-    time: "1h ago",
-    category: "Automotive",
-    sentiment: "positive",
-    relatedSymbol: "TSLA",
-  },
-  {
-    id: "news-4",
-    title:
-      "Cloud Infrastructure Spending Growth Moderates Across Enterprise Accounts",
-    source: "Financial Times",
-    time: "2h ago",
-    category: "Cloud",
-    sentiment: "negative",
-    relatedSymbol: "MSFT",
-  },
-  {
-    id: "news-5",
-    title:
-      "Apple Intelligence Rollout Dates Confirmed for Fall Hardware Ecosystem Event",
-    source: "TechCrunch",
-    time: "3h ago",
-    category: "Consumer Tech",
-    sentiment: "positive",
-    relatedSymbol: "AAPL",
-  },
-];
-
-const INITIAL_PORTFOLIO: PortfolioPosition[] = [
-  {
-    id: "pos-1",
-    symbol: "NVDA",
-    shares: 150,
-    avgCost: 95.2,
-    currentPrice: 128.44,
-    totalValue: 19266.0,
-    unrealizedPl: 4986.0,
-    unrealizedPlPercent: 34.83,
-  },
-  {
-    id: "pos-2",
-    symbol: "AAPL",
-    shares: 80,
-    avgCost: 182.5,
-    currentPrice: 231.09,
-    totalValue: 18487.2,
-    unrealizedPl: 3887.2,
-    unrealizedPlPercent: 26.61,
-  },
-  {
-    id: "pos-3",
-    symbol: "TSLA",
-    shares: 60,
-    avgCost: 210.0,
-    currentPrice: 256.77,
-    totalValue: 15406.2,
-    unrealizedPl: 2806.2,
-    unrealizedPlPercent: 22.27,
-  },
-  {
-    id: "pos-4",
-    symbol: "MSFT",
-    shares: 45,
-    avgCost: 410.0,
-    currentPrice: 441.2,
-    totalValue: 19854.0,
-    unrealizedPl: 1404.0,
-    unrealizedPlPercent: 7.61,
-  },
-];
-
-// ============================================================================
-// 3. UTILITY COMPONENTS (SPARKLINE, BADGES, TOGGLES)
+// UTILITY COMPONENTS (SPARKLINE, BADGES, TOGGLES)
 // ============================================================================
 
 const SparklineSVG = React.memo(
@@ -447,11 +120,490 @@ const SparklineSVG = React.memo(
 );
 SparklineSVG.displayName = "SparklineSVG";
 
+// Market Sector Performance Component
+function MarketSectorCard({
+  sector,
+  performance,
+  trend,
+  icon: IconComponent,
+}: {
+  sector: string;
+  performance: number;
+  trend: "up" | "down" | "neutral";
+  icon: React.ComponentType<{ className: string }>;
+}) {
+  const trendColor =
+    trend === "up"
+      ? "text-emerald-400 bg-emerald-500/10"
+      : trend === "down"
+        ? "text-rose-400 bg-rose-500/10"
+        : "text-slate-400 bg-slate-500/10";
+
+  return (
+    <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4 hover:border-slate-700 transition-all">
+      <div className="flex items-center justify-between mb-3">
+        <div className="flex items-center gap-2">
+          <IconComponent className="h-4 w-4 text-amber-400" />
+          <span className="text-xs font-semibold text-slate-300">{sector}</span>
+        </div>
+        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${trendColor}`}>
+          {performance > 0 ? "+" : ""}{performance.toFixed(2)}%
+        </span>
+      </div>
+      <div className="h-1.5 rounded-full bg-slate-800 overflow-hidden">
+        <div
+          className={`h-full rounded-full ${trend === "up" ? "bg-emerald-400" : trend === "down" ? "bg-rose-400" : "bg-slate-500"}`}
+          style={{ width: `${Math.min(Math.abs(performance) * 2, 100)}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+// Performance Metrics Box
+function MetricBox({
+  label,
+  value,
+  change,
+  unit,
+  accentColor,
+}: {
+  label: string;
+  value: string | number;
+  change?: number;
+  unit?: string;
+  accentColor: string;
+}) {
+  return (
+    <div className="rounded-xl border border-slate-800/60 bg-slate-950/40 p-3">
+      <span className="text-[10px] font-semibold uppercase text-slate-400 block mb-1">
+        {label}
+      </span>
+      <div className="flex items-end justify-between">
+        <span className={`text-lg font-bold ${accentColor}`}>{value}</span>
+        {unit && <span className="text-[10px] text-slate-500">{unit}</span>}
+      </div>
+      {change !== undefined && (
+        <span
+          className={`text-[10px] font-semibold mt-1 block ${change >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+        >
+          {change > 0 ? "+" : ""}{change.toFixed(2)}%
+        </span>
+      )}
+    </div>
+  );
+}
+
+// Advanced Data Grid Component
+function AdvancedStockGrid({
+  stocks,
+  onSelectStock,
+}: {
+  stocks: StockItem[];
+  onSelectStock: (stock: StockItem) => void;
+}) {
+  const [sortBy, setSortBy] = useState<"performance" | "zscore" | "volume">(
+    "performance",
+  );
+
+  const sortedStocks = useMemo(() => {
+    const sorted = [...stocks];
+    if (sortBy === "performance") {
+      sorted.sort((a, b) => b.change - a.change);
+    } else if (sortBy === "zscore") {
+      sorted.sort((a, b) => b.signals.zScore - a.signals.zScore);
+    } else {
+      sorted.sort((a, b) => parseFloat(b.volume) - parseFloat(a.volume));
+    }
+    return sorted;
+  }, [stocks, sortBy]);
+
+  return (
+    <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h3 className="text-lg font-bold text-white">Market Screener</h3>
+          <p className="text-xs text-slate-400">Real-time stock analysis</p>
+        </div>
+        <div className="flex gap-2">
+          {(["performance", "zscore", "volume"] as const).map((option) => (
+            <button
+              key={option}
+              onClick={() => setSortBy(option)}
+              className={`text-xs font-bold px-3 py-1.5 rounded-lg transition-all ${
+                sortBy === option
+                  ? "bg-amber-500 text-slate-950"
+                  : "border border-slate-800 text-slate-400 hover:text-white"
+              }`}
+            >
+              {option === "performance"
+                ? "Performance"
+                : option === "zscore"
+                  ? "Z-Score"
+                  : "Volume"}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="overflow-x-auto">
+        <table className="w-full text-left text-sm font-mono">
+          <thead>
+            <tr className="border-b border-slate-800/80 text-[10px] font-bold uppercase text-slate-400">
+              <th className="pb-3 pl-2">Symbol</th>
+              <th className="pb-3">Price</th>
+              <th className="pb-3">Change</th>
+              <th className="pb-3">RSI</th>
+              <th className="pb-3">Z-Score</th>
+              <th className="pb-3">Volume</th>
+              <th className="pb-3 pr-2 text-right">Action</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-slate-800/50">
+            {sortedStocks.slice(0, 8).map((stock) => (
+              <tr
+                key={stock.symbol}
+                className="transition-colors hover:bg-slate-800/40"
+              >
+                <td className="py-3 pl-2">
+                  <span className="font-bold text-amber-400">{stock.symbol}</span>
+                </td>
+                <td className="py-3 font-semibold text-white">
+                  ${stock.price.toFixed(2)}
+                </td>
+                <td className="py-3">
+                  <span
+                    className={`font-bold ${stock.change >= 0 ? "text-emerald-400" : "text-rose-400"}`}
+                  >
+                    {stock.change >= 0 ? "+" : ""}{stock.change.toFixed(2)}%
+                  </span>
+                </td>
+                <td className="py-3 text-slate-300">{stock.signals.rsi}</td>
+                <td className="py-3 font-bold text-amber-400">
+                  +{stock.signals.zScore}σ
+                </td>
+                <td className="py-3 text-slate-300">{stock.volume}</td>
+                <td className="py-3 pr-2">
+                  <button
+                    onClick={() => onSelectStock(stock)}
+                    className="text-amber-400 hover:text-amber-300 font-bold text-xs"
+                  >
+                    View
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
 // ============================================================================
-// 4. SUB-VIEWS & MODULES
+// SUB-VIEWS & MODULES
 // ============================================================================
 
-// --- Overview / Dashboard Tab ---
+// --- Performance Dashboard Tab ---
+function PerformanceDashboardTab({
+  stocks,
+  onSelectStock,
+}: {
+  stocks: StockItem[];
+  onSelectStock: (stock: StockItem) => void;
+}) {
+  const sectorPerformance = [
+    { name: "Semiconductors", performance: 2.45, trend: "up" as const },
+    { name: "Cloud & AI", performance: 1.82, trend: "up" as const },
+    { name: "Consumer Tech", performance: -0.42, trend: "down" as const },
+    { name: "Automotive", performance: 1.03, trend: "up" as const },
+  ];
+
+  const bullishStocks = stocks.filter(
+    (s) => s.signals.sentiment === "Bullish",
+  ).length;
+  const bearishStocks = stocks.filter(
+    (s) => s.signals.sentiment === "Bearish",
+  ).length;
+  const avgRsi =
+    stocks.reduce((acc, s) => acc + s.signals.rsi, 0) / stocks.length;
+
+  return (
+    <div className="space-y-8 animate-fadeIn">
+      {/* Market Health Overview */}
+      <div className="grid gap-5 md:grid-cols-4">
+        <MetricBox
+          label="Bullish Count"
+          value={bullishStocks}
+          accentColor="text-emerald-400"
+        />
+        <MetricBox
+          label="Bearish Count"
+          value={bearishStocks}
+          accentColor="text-rose-400"
+        />
+        <MetricBox
+          label="Avg RSI (14)"
+          value={avgRsi.toFixed(1)}
+          accentColor="text-amber-400"
+        />
+        <MetricBox
+          label="Market Theta"
+          value="0.42"
+          unit="hrs"
+          change={-0.15}
+          accentColor="text-indigo-400"
+        />
+      </div>
+
+      {/* Sector Performance Grid */}
+      <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <h3 className="text-lg font-bold text-white mb-6">Sector Performance</h3>
+        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+          {sectorPerformance.map((sector) => (
+            <MarketSectorCard
+              key={sector.name}
+              sector={sector.name}
+              performance={sector.performance}
+              trend={sector.trend}
+              icon={TrendingUp}
+            />
+          ))}
+        </div>
+      </div>
+
+      {/* Advanced Stock Screener */}
+      <AdvancedStockGrid stocks={stocks} onSelectStock={onSelectStock} />
+
+      {/* Risk Analysis Box */}
+      <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <h3 className="text-lg font-bold text-white mb-6">Risk Assessment</h3>
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase text-slate-400">
+                Portfolio Beta
+              </span>
+              <span className="text-lg font-bold text-amber-400">1.28</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              28% more volatile than market
+            </p>
+            <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-full w-[64%] bg-gradient-to-r from-amber-400 to-yellow-400" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase text-slate-400">
+                VaR (95%)
+              </span>
+              <span className="text-lg font-bold text-rose-400">-2.34%</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Expected max 1-day loss
+            </p>
+            <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-full w-[40%] bg-gradient-to-r from-rose-400 to-red-400" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase text-slate-400">
+                Sharpe Ratio
+              </span>
+              <span className="text-lg font-bold text-emerald-400">1.84</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Risk-adjusted return metric
+            </p>
+            <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-full w-[92%] bg-gradient-to-r from-emerald-400 to-cyan-400" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase text-slate-400">
+                Max Drawdown
+              </span>
+              <span className="text-lg font-bold text-rose-400">-8.42%</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Peak to trough decline
+            </p>
+            <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-full w-[28%] bg-gradient-to-r from-rose-400 to-red-400" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase text-slate-400">
+                Correlation
+              </span>
+              <span className="text-lg font-bold text-indigo-400">0.72</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Portfolio to S&P 500
+            </p>
+            <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-full w-[72%] bg-gradient-to-r from-indigo-400 to-purple-400" />
+            </div>
+          </div>
+
+          <div className="rounded-2xl border border-slate-800 bg-slate-950 p-5">
+            <div className="flex items-center justify-between mb-3">
+              <span className="text-xs font-bold uppercase text-slate-400">
+                Sortino Ratio
+              </span>
+              <span className="text-lg font-bold text-cyan-400">2.47</span>
+            </div>
+            <p className="text-xs text-slate-400">
+              Downside risk adjusted
+            </p>
+            <div className="mt-4 h-2 rounded-full bg-slate-800 overflow-hidden">
+              <div className="h-full w-[82%] bg-gradient-to-r from-cyan-400 to-blue-400" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// --- Market Insights Tab ---
+function MarketInsightsTab({
+  stocks,
+  news,
+}: {
+  stocks: StockItem[];
+  news: NewsItem[];
+}) {
+  const topPerformers = [...stocks]
+    .sort((a, b) => b.change - a.change)
+    .slice(0, 5);
+  const underperformers = [...stocks]
+    .sort((a, b) => a.change - b.change)
+    .slice(0, 5);
+
+  return (
+    <div className="space-y-8 animate-fadeIn">
+      <div className="grid gap-8 lg:grid-cols-2">
+        {/* Top Performers */}
+        <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <TrendingUp className="h-5 w-5 text-emerald-400" />
+            Top Performers
+          </h3>
+          <div className="space-y-3">
+            {topPerformers.map((stock, idx) => (
+              <div
+                key={stock.symbol}
+                className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/40 border border-slate-800/60 hover:border-slate-700 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-emerald-400 bg-emerald-500/10 px-2 py-1 rounded-lg">
+                    #{idx + 1}
+                  </span>
+                  <div>
+                    <p className="font-bold text-white">{stock.symbol}</p>
+                    <p className="text-[10px] text-slate-400">{stock.name}</p>
+                  </div>
+                </div>
+                <span className="font-bold text-emerald-400">
+                  +{stock.change.toFixed(2)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Underperformers */}
+        <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+          <h3 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+            <TrendingDown className="h-5 w-5 text-rose-400" />
+            Underperformers
+          </h3>
+          <div className="space-y-3">
+            {underperformers.map((stock, idx) => (
+              <div
+                key={stock.symbol}
+                className="flex items-center justify-between p-3 rounded-2xl bg-slate-950/40 border border-slate-800/60 hover:border-slate-700 transition-all"
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-xs font-bold text-rose-400 bg-rose-500/10 px-2 py-1 rounded-lg">
+                    #{idx + 1}
+                  </span>
+                  <div>
+                    <p className="font-bold text-white">{stock.symbol}</p>
+                    <p className="text-[10px] text-slate-400">{stock.name}</p>
+                  </div>
+                </div>
+                <span className="font-bold text-rose-400">
+                  {stock.change.toFixed(2)}%
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Detailed News Analysis */}
+      <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <h3 className="text-lg font-bold text-white mb-6">Market News Deep Dive</h3>
+        <div className="space-y-4">
+          {news.map((item, idx) => (
+            <div
+              key={item.id}
+              className="p-5 rounded-2xl border border-slate-800/60 bg-slate-950/40 hover:bg-slate-950/70 transition-all"
+            >
+              <div className="flex items-start justify-between gap-4">
+                <div className="flex-1">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                      {item.source}
+                    </span>
+                    <span className="text-[10px] text-slate-500">{item.time}</span>
+                    <span
+                      className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
+                        item.sentiment === "positive"
+                          ? "bg-emerald-500/10 text-emerald-400"
+                          : item.sentiment === "negative"
+                            ? "bg-rose-500/10 text-rose-400"
+                            : "bg-slate-500/10 text-slate-400"
+                      }`}
+                    >
+                      {item.sentiment.toUpperCase()}
+                    </span>
+                  </div>
+                  <h4 className="font-semibold text-slate-100 text-sm leading-snug">
+                    {item.title}
+                  </h4>
+                  <div className="mt-3 flex items-center gap-2">
+                    <span className="text-[10px] font-mono text-amber-400 bg-amber-500/10 px-2 py-1 rounded">
+                      {item.relatedSymbol}
+                    </span>
+                    <span className="text-[10px] text-slate-400">
+                      {item.category}
+                    </span>
+                  </div>
+                </div>
+                <button className="text-slate-500 hover:text-amber-400 transition-colors">
+                  <ExternalLink className="h-4 w-4" />
+                </button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+
 function OverviewTab({
   stocks,
   news,
@@ -557,6 +709,96 @@ function OverviewTab({
           <p className="mt-2 text-xs text-slate-400">
             Next check in 45 seconds
           </p>
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+        <div className="rounded-[2rem] border border-slate-800/80 bg-[radial-gradient(circle_at_top_left,_rgba(246,201,106,0.15),_transparent_35%),linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(11,16,30,0.9))] p-6 shadow-2xl shadow-slate-950/30">
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Market Pulse
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-white">Executive brief</h3>
+            </div>
+            <div className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] font-bold text-emerald-300">
+              +1.8% drift
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-700/70 bg-slate-950/40 p-4">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>Risk</span>
+                <span className="font-mono text-emerald-300">Low</span>
+              </div>
+              <div className="mt-3 flex items-end gap-2">
+                <span className="font-mono text-3xl font-bold text-white">32</span>
+                <span className="pb-1 text-[10px] text-slate-500">/100</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-slate-800">
+                <div className="h-full w-[32%] rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-700/70 bg-slate-950/40 p-4">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>Momentum</span>
+                <span className="font-mono text-amber-300">Strong</span>
+              </div>
+              <div className="mt-3 flex items-end gap-2">
+                <span className="font-mono text-3xl font-bold text-white">78</span>
+                <span className="pb-1 text-[10px] text-slate-500">/100</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-slate-800">
+                <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-amber-400 to-yellow-300" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-700/70 bg-slate-950/40 p-4">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>Liquidity</span>
+                <span className="font-mono text-indigo-300">Healthy</span>
+              </div>
+              <div className="mt-3 flex items-end gap-2">
+                <span className="font-mono text-3xl font-bold text-white">84</span>
+                <span className="pb-1 text-[10px] text-slate-500">/100</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-slate-800">
+                <div className="h-full w-[84%] rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] border border-slate-800/80 bg-slate-900/70 p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Action Queue
+              </p>
+              <h3 className="mt-2 text-xl font-bold text-white">Priority list</h3>
+            </div>
+            <button className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300">
+              3 open
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              { label: "NVDA breakout check", tone: "amber" },
+              { label: "TSLA alert rebalancing", tone: "green" },
+              { label: "Portfolio drift scan", tone: "blue" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <span className={`h-2.5 w-2.5 rounded-full ${item.tone === "amber" ? "bg-amber-400" : item.tone === "green" ? "bg-emerald-400" : "bg-cyan-400"}`} />
+                  <span className="text-sm font-medium text-slate-200">{item.label}</span>
+                </div>
+                <ChevronRight className="h-4 w-4 text-slate-500" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -689,6 +931,83 @@ function OverviewTab({
           <button className="mt-6 w-full rounded-xl border border-slate-800 bg-slate-800/50 py-3 text-xs font-bold text-slate-300 transition-colors hover:bg-slate-800 hover:text-white">
             Open Full News Terminal →
           </button>
+        </div>
+      </div>
+
+      {/* Extended Analytics Section */}
+      <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-6 backdrop-blur-xl shadow-xl">
+        <h3 className="text-lg font-bold text-white mb-6">Market Correlation Matrix</h3>
+        <div className="grid gap-3 md:grid-cols-5">
+          {stocks.slice(0, 5).map((stock) => (
+            <div key={stock.symbol} className="space-y-2">
+              <div className="text-center">
+                <span className="text-xs font-bold text-amber-400">{stock.symbol}</span>
+              </div>
+              {stocks.slice(0, 5).map((compareStock) => {
+                const correlation = Math.random() * 0.8 + 0.2;
+                return (
+                  <div
+                    key={`${stock.symbol}-${compareStock.symbol}`}
+                    className={`p-2 rounded-lg text-center text-xs font-mono ${
+                      correlation > 0.7
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : correlation > 0.4
+                          ? "bg-slate-700/40 text-slate-300"
+                          : "bg-rose-500/20 text-rose-300"
+                    }`}
+                  >
+                    {correlation.toFixed(2)}
+                  </div>
+                );
+              })}
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Additional Market Metrics */}
+      <div className="grid gap-5 md:grid-cols-3 lg:grid-cols-6">
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block mb-2">
+            Market Close
+          </span>
+          <span className="text-lg font-bold text-white">4:00 PM</span>
+          <p className="text-[10px] text-slate-500 mt-1">NYSE</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block mb-2">
+            52W Range
+          </span>
+          <span className="text-lg font-bold text-white">$40-$141</span>
+          <p className="text-[10px] text-slate-500 mt-1">NVDA</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block mb-2">
+            Avg Volume
+          </span>
+          <span className="text-lg font-bold text-white">52.3M</span>
+          <p className="text-[10px] text-slate-500 mt-1">30-day average</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block mb-2">
+            IV Rank
+          </span>
+          <span className="text-lg font-bold text-amber-400">78%</span>
+          <p className="text-[10px] text-slate-500 mt-1">High volatility</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block mb-2">
+            VIX
+          </span>
+          <span className="text-lg font-bold text-emerald-400">18.45</span>
+          <p className="text-[10px] text-slate-500 mt-1">Low fear index</p>
+        </div>
+        <div className="rounded-2xl border border-slate-800/60 bg-slate-950/40 p-4">
+          <span className="text-[10px] font-bold uppercase text-slate-400 block mb-2">
+            Yield Curve
+          </span>
+          <span className="text-lg font-bold text-slate-300">Normal</span>
+          <p className="text-[10px] text-slate-500 mt-1">2yr-10yr spread</p>
         </div>
       </div>
     </div>
@@ -1172,10 +1491,129 @@ function PortfolioTab() {
 
 // --- Settings Tab ---
 function SettingsTab() {
+  const [selectedTheme, setSelectedTheme] = useState("dark");
+  const [notificationsEnabled, setNotificationsEnabled] = useState(true);
+  const [soundEnabled, setSoundEnabled] = useState(true);
+
   return (
     <div className="max-w-4xl space-y-8 animate-fadeIn">
+      {/* Display Settings */}
       <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-8 backdrop-blur-xl shadow-xl space-y-6">
-        <h3 className="text-xl font-bold text-white">Workspace Preferences</h3>
+        <h3 className="text-xl font-bold text-white">Display Settings</h3>
+        <div className="space-y-4">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div>
+              <p className="font-sans font-bold text-white">Theme</p>
+              <p className="text-xs text-slate-400 font-sans">
+                Choose your preferred color scheme
+              </p>
+            </div>
+            <select
+              value={selectedTheme}
+              onChange={(e) => setSelectedTheme(e.target.value)}
+              className="rounded-lg bg-slate-800 border border-slate-700 px-3 py-1.5 text-sm text-white focus:outline-none"
+            >
+              <option value="dark">Dark</option>
+              <option value="light">Light</option>
+              <option value="auto">System</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div>
+              <p className="font-sans font-bold text-white">Chart Density</p>
+              <p className="text-xs text-slate-400 font-sans">
+                Adjust data visualization density
+              </p>
+            </div>
+            <span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-bold text-slate-300">
+              Compact
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between pb-4">
+            <div>
+              <p className="font-sans font-bold text-white">Animation Effects</p>
+              <p className="text-xs text-slate-400 font-sans">
+                Enable smooth transitions and animations
+              </p>
+            </div>
+            <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/20">
+              Enabled
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Notification Settings */}
+      <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-8 backdrop-blur-xl shadow-xl space-y-6">
+        <h3 className="text-xl font-bold text-white">Notifications</h3>
+        <div className="space-y-4 font-mono text-sm">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div>
+              <p className="font-sans font-bold text-white">
+                Price Alerts
+              </p>
+              <p className="text-xs text-slate-400 font-sans">
+                Get notified when assets reach target price
+              </p>
+            </div>
+            <button
+              onClick={() => setNotificationsEnabled(!notificationsEnabled)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                notificationsEnabled ? "bg-emerald-500" : "bg-slate-800"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition ${
+                  notificationsEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
+            <div>
+              <p className="font-sans font-bold text-white">
+                Volume Spike Alerts
+              </p>
+              <p className="text-xs text-slate-400 font-sans">
+                Notify when volume exceeds threshold
+              </p>
+            </div>
+            <span className="rounded-full bg-emerald-500/10 px-3 py-1 text-xs font-bold text-emerald-400 border border-emerald-500/20">
+              Active
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between pb-4">
+            <div>
+              <p className="font-sans font-bold text-white">
+                Sound Effects
+              </p>
+              <p className="text-xs text-slate-400 font-sans">
+                Play audio cues for important events
+              </p>
+            </div>
+            <button
+              onClick={() => setSoundEnabled(!soundEnabled)}
+              className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+                soundEnabled ? "bg-emerald-500" : "bg-slate-800"
+              }`}
+            >
+              <span
+                className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-lg transition ${
+                  soundEnabled ? "translate-x-5" : "translate-x-0"
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Advanced Settings */}
+      <div className="rounded-3xl border border-slate-800/80 bg-slate-900/60 p-8 backdrop-blur-xl shadow-xl space-y-6">
+        <h3 className="text-xl font-bold text-white">Advanced Settings</h3>
         <div className="space-y-4 font-mono text-sm">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
             <div>
@@ -1194,20 +1632,6 @@ function SettingsTab() {
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-4">
             <div>
               <p className="font-sans font-bold text-white">
-                Audio Alerts for Sigma Breakouts
-              </p>
-              <p className="text-xs text-slate-400 font-sans">
-                Play chime when a Z-score crosses 2.5σ
-              </p>
-            </div>
-            <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400 border border-amber-500/20">
-              Enabled
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="font-sans font-bold text-white">
                 API Rate Limit Mode
               </p>
               <p className="text-xs text-slate-400 font-sans">
@@ -1218,6 +1642,20 @@ function SettingsTab() {
               Standard
             </span>
           </div>
+
+          <div className="flex items-center justify-between pb-4">
+            <div>
+              <p className="font-sans font-bold text-white">
+                Data Retention
+              </p>
+              <p className="text-xs text-slate-400 font-sans">
+                Keep historical quote data for backtesting
+              </p>
+            </div>
+            <span className="rounded-full bg-amber-500/10 px-3 py-1 text-xs font-bold text-amber-400 border border-amber-500/20">
+              30 days
+            </span>
+          </div>
         </div>
       </div>
     </div>
@@ -1225,7 +1663,7 @@ function SettingsTab() {
 }
 
 // ============================================================================
-// 5. MAIN ENTERPRISE DASHBOARD CONTAINER
+// MAIN ENTERPRISE DASHBOARD CONTAINER
 // ============================================================================
 
 export default function StreetLevelDashboard() {
@@ -1241,6 +1679,8 @@ export default function StreetLevelDashboard() {
     { id: "watchlist" as TabType, label: "Watchlist", icon: Star },
     { id: "analytics" as TabType, label: "Analytics", icon: LineChart },
     { id: "signals" as TabType, label: "Smart Signals", icon: Zap },
+    { id: "performance" as TabType, label: "Performance", icon: TrendingUp },
+    { id: "insights" as TabType, label: "Insights", icon: Compass },
     { id: "portfolio" as TabType, label: "Portfolio", icon: Briefcase },
     { id: "settings" as TabType, label: "Settings", icon: Settings },
   ];
@@ -1367,6 +1807,15 @@ export default function StreetLevelDashboard() {
           )}
           {activeTab === "analytics" && <AnalyticsTab stocks={stocks} />}
           {activeTab === "signals" && <SignalsTab />}
+          {activeTab === "performance" && (
+            <PerformanceDashboardTab
+              stocks={stocks}
+              onSelectStock={setSelectedStockModal}
+            />
+          )}
+          {activeTab === "insights" && (
+            <MarketInsightsTab stocks={stocks} news={news} />
+          )}
           {activeTab === "portfolio" && <PortfolioTab />}
           {activeTab === "settings" && <SettingsTab />}
         </main>

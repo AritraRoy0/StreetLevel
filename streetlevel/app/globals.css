@@ -36,6 +36,23 @@ body {
   box-sizing: border-box;
 }
 
+html, body {
+  scrollbar-color: rgba(148, 163, 184, 0.5) rgba(15, 23, 42, 0.9);
+}
+
+body::-webkit-scrollbar {
+  width: 10px;
+}
+
+body::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.9);
+}
+
+body::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.45);
+  border-radius: 9999px;
+}
+
 button,
 a {
   -webkit-tap-highlight-color: transparent;
