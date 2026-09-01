@@ -10,6 +10,14 @@ import React, {
   useContext,
 } from "react";
 import Link from "next/link";
+import { MOCK_STOCKS, MOCK_NEWS, INITIAL_PORTFOLIO } from "@/lib/mock-data";
+import {
+  type TabType,
+  type StockItem,
+  type NewsItem,
+  type PortfolioPosition,
+  type AlertRule,
+} from "@/lib/types";
 import {
   Activity,
   ArrowDownRight,
@@ -76,342 +84,7 @@ import {
 } from "lucide-react";
 
 // ============================================================================
-// 1. TYPES & INTERFACES
-// ============================================================================
-
-export type TabType =
-  | "overview"
-  | "watchlist"
-  | "analytics"
-  | "signals"
-  | "portfolio"
-  | "settings";
-
-export interface StockItem {
-  symbol: string;
-  name: string;
-  sector: string;
-  price: number;
-  change: number;
-  changeAmount: number;
-  volume: string;
-  marketCap: string;
-  peRatio: number;
-  high52: number;
-  low52: number;
-  sparkline: number[];
-  signals: {
-    rsi: number;
-    sma50: number;
-    bollinger: "Upper" | "Middle" | "Lower";
-    zScore: number;
-    sentiment: "Bullish" | "Bearish" | "Neutral";
-  };
-}
-
-export interface NewsItem {
-  id: string;
-  title: string;
-  source: string;
-  time: string;
-  category: string;
-  sentiment: "positive" | "negative" | "neutral";
-  relatedSymbol: string;
-}
-
-export interface PortfolioPosition {
-  id: string;
-  symbol: string;
-  shares: number;
-  avgCost: number;
-  currentPrice: number;
-  totalValue: number;
-  unrealizedPl: number;
-  unrealizedPlPercent: number;
-}
-
-export interface AlertRule {
-  id: string;
-  symbol: string;
-  condition: "above" | "below" | "crosses_sma";
-  targetValue: number;
-  active: boolean;
-  createdAt: string;
-}
-
-// ============================================================================
-// 2. MOCK DATA REPOSITORY
-// ============================================================================
-
-const MOCK_STOCKS: StockItem[] = [
-  {
-    symbol: "NVDA",
-    name: "NVIDIA Corporation",
-    sector: "Semiconductors",
-    price: 128.44,
-    change: 2.14,
-    changeAmount: 2.69,
-    volume: "65.4M",
-    marketCap: "$3.16T",
-    peRatio: 74.2,
-    high52: 140.76,
-    low52: 40.86,
-    sparkline: [118, 121, 119, 124, 126, 123, 128],
-    signals: {
-      rsi: 68,
-      sma50: 122.4,
-      bollinger: "Upper",
-      zScore: 2.3,
-      sentiment: "Bullish",
-    },
-  },
-  {
-    symbol: "AAPL",
-    name: "Apple Inc.",
-    sector: "Consumer Electronics",
-    price: 231.09,
-    change: -0.42,
-    changeAmount: -0.98,
-    volume: "42.1M",
-    marketCap: "$3.52T",
-    peRatio: 34.5,
-    high52: 237.23,
-    low52: 165.67,
-    sparkline: [233, 232, 234, 231, 230, 232, 231],
-    signals: {
-      rsi: 54,
-      sma50: 228.1,
-      bollinger: "Middle",
-      zScore: 0.4,
-      sentiment: "Neutral",
-    },
-  },
-  {
-    symbol: "TSLA",
-    name: "Tesla, Inc.",
-    sector: "Automotive & Clean Energy",
-    price: 256.77,
-    change: 1.03,
-    changeAmount: 2.62,
-    volume: "88.9M",
-    marketCap: "$815.4B",
-    peRatio: 92.1,
-    high52: 271.0,
-    low52: 138.8,
-    sparkline: [249, 251, 253, 250, 254, 255, 257],
-    signals: {
-      rsi: 72,
-      sma50: 242.0,
-      bollinger: "Upper",
-      zScore: 2.8,
-      sentiment: "Bullish",
-    },
-  },
-  {
-    symbol: "MSFT",
-    name: "Microsoft Corporation",
-    sector: "Software & Cloud",
-    price: 441.2,
-    change: 0.18,
-    changeAmount: 0.79,
-    volume: "19.3M",
-    marketCap: "$3.28T",
-    peRatio: 38.9,
-    high52: 468.35,
-    low52: 309.45,
-    sparkline: [438, 440, 439, 441, 440, 442, 441],
-    signals: {
-      rsi: 51,
-      sma50: 439.5,
-      bollinger: "Middle",
-      zScore: 0.1,
-      sentiment: "Neutral",
-    },
-  },
-  {
-    symbol: "AMZN",
-    name: "Amazon.com, Inc.",
-    sector: "E-Commerce & Cloud",
-    price: 186.5,
-    change: -1.35,
-    changeAmount: -2.55,
-    volume: "35.2M",
-    marketCap: "$1.94T",
-    peRatio: 51.4,
-    high52: 201.2,
-    low52: 118.35,
-    sparkline: [190, 189, 191, 188, 187, 185, 186.5],
-    signals: {
-      rsi: 42,
-      sma50: 189.2,
-      bollinger: "Lower",
-      zScore: -1.1,
-      sentiment: "Bearish",
-    },
-  },
-  {
-    symbol: "GOOGL",
-    name: "Alphabet Inc.",
-    sector: "Internet & Services",
-    price: 179.3,
-    change: 0.65,
-    changeAmount: 1.16,
-    volume: "22.8M",
-    marketCap: "$2.22T",
-    peRatio: 27.8,
-    high52: 191.75,
-    low52: 120.21,
-    sparkline: [176, 177, 178, 177, 179, 178, 179.3],
-    signals: {
-      rsi: 59,
-      sma50: 177.0,
-      bollinger: "Middle",
-      zScore: 0.9,
-      sentiment: "Bullish",
-    },
-  },
-  {
-    symbol: "AMD",
-    name: "Advanced Micro Devices",
-    sector: "Semiconductors",
-    price: 154.2,
-    change: 1.82,
-    changeAmount: 2.76,
-    volume: "48.1M",
-    marketCap: "$249.2B",
-    peRatio: 115.4,
-    high52: 227.3,
-    low52: 95.5,
-    sparkline: [148, 150, 151, 152, 151, 153, 154.2],
-    signals: {
-      rsi: 63,
-      sma50: 150.1,
-      bollinger: "Upper",
-      zScore: 1.7,
-      sentiment: "Bullish",
-    },
-  },
-  {
-    symbol: "PLTR",
-    name: "Palantir Technologies Inc.",
-    sector: "Software & AI",
-    price: 29.85,
-    change: 3.21,
-    changeAmount: 0.93,
-    volume: "74.6M",
-    marketCap: "$66.8B",
-    peRatio: 82.0,
-    high52: 31.5,
-    low52: 13.68,
-    sparkline: [27, 27.5, 28, 28.5, 29, 29.2, 29.85],
-    signals: {
-      rsi: 78,
-      sma50: 26.5,
-      bollinger: "Upper",
-      zScore: 3.1,
-      sentiment: "Bullish",
-    },
-  },
-];
-
-const MOCK_NEWS: NewsItem[] = [
-  {
-    id: "news-1",
-    title:
-      "NVIDIA Announces Next-Generation Blackwell Architecture Deployment Schedules",
-    source: "Bloomberg",
-    time: "12m ago",
-    category: "Semiconductors",
-    sentiment: "positive",
-    relatedSymbol: "NVDA",
-  },
-  {
-    id: "news-2",
-    title:
-      "Federal Reserve Signals Potential Rate Cut Amid Cooling Inflation Metrics",
-    source: "Wall Street Journal",
-    time: "38m ago",
-    category: "Macroeconomics",
-    sentiment: "positive",
-    relatedSymbol: "SPY",
-  },
-  {
-    id: "news-3",
-    title:
-      "Tesla Expands Full Self-Driving Beta Trials Across European Regulatory Markets",
-    source: "Reuters",
-    time: "1h ago",
-    category: "Automotive",
-    sentiment: "positive",
-    relatedSymbol: "TSLA",
-  },
-  {
-    id: "news-4",
-    title:
-      "Cloud Infrastructure Spending Growth Moderates Across Enterprise Accounts",
-    source: "Financial Times",
-    time: "2h ago",
-    category: "Cloud",
-    sentiment: "negative",
-    relatedSymbol: "MSFT",
-  },
-  {
-    id: "news-5",
-    title:
-      "Apple Intelligence Rollout Dates Confirmed for Fall Hardware Ecosystem Event",
-    source: "TechCrunch",
-    time: "3h ago",
-    category: "Consumer Tech",
-    sentiment: "positive",
-    relatedSymbol: "AAPL",
-  },
-];
-
-const INITIAL_PORTFOLIO: PortfolioPosition[] = [
-  {
-    id: "pos-1",
-    symbol: "NVDA",
-    shares: 150,
-    avgCost: 95.2,
-    currentPrice: 128.44,
-    totalValue: 19266.0,
-    unrealizedPl: 4986.0,
-    unrealizedPlPercent: 34.83,
-  },
-  {
-    id: "pos-2",
-    symbol: "AAPL",
-    shares: 80,
-    avgCost: 182.5,
-    currentPrice: 231.09,
-    totalValue: 18487.2,
-    unrealizedPl: 3887.2,
-    unrealizedPlPercent: 26.61,
-  },
-  {
-    id: "pos-3",
-    symbol: "TSLA",
-    shares: 60,
-    avgCost: 210.0,
-    currentPrice: 256.77,
-    totalValue: 15406.2,
-    unrealizedPl: 2806.2,
-    unrealizedPlPercent: 22.27,
-  },
-  {
-    id: "pos-4",
-    symbol: "MSFT",
-    shares: 45,
-    avgCost: 410.0,
-    currentPrice: 441.2,
-    totalValue: 19854.0,
-    unrealizedPl: 1404.0,
-    unrealizedPlPercent: 7.61,
-  },
-];
-
-// ============================================================================
-// 3. UTILITY COMPONENTS (SPARKLINE, BADGES, TOGGLES)
+// UTILITY COMPONENTS (SPARKLINE, BADGES, TOGGLES)
 // ============================================================================
 
 const SparklineSVG = React.memo(
@@ -448,7 +121,7 @@ const SparklineSVG = React.memo(
 SparklineSVG.displayName = "SparklineSVG";
 
 // ============================================================================
-// 4. SUB-VIEWS & MODULES
+// SUB-VIEWS & MODULES
 // ============================================================================
 
 // --- Overview / Dashboard Tab ---
@@ -557,6 +230,96 @@ function OverviewTab({
           <p className="mt-2 text-xs text-slate-400">
             Next check in 45 seconds
           </p>
+        </div>
+      </div>
+
+      <div className="grid gap-5 xl:grid-cols-[1.35fr_0.65fr]">
+        <div className="rounded-[2rem] border border-slate-800/80 bg-[radial-gradient(circle_at_top_left,_rgba(246,201,106,0.15),_transparent_35%),linear-gradient(135deg,_rgba(15,23,42,0.96),_rgba(11,16,30,0.9))] p-6 shadow-2xl shadow-slate-950/30">
+          <div className="flex items-center justify-between gap-3 mb-6">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Market Pulse
+              </p>
+              <h3 className="mt-2 text-2xl font-bold text-white">Executive brief</h3>
+            </div>
+            <div className="rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1 font-mono text-[10px] font-bold text-emerald-300">
+              +1.8% drift
+            </div>
+          </div>
+
+          <div className="grid gap-4 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-700/70 bg-slate-950/40 p-4">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>Risk</span>
+                <span className="font-mono text-emerald-300">Low</span>
+              </div>
+              <div className="mt-3 flex items-end gap-2">
+                <span className="font-mono text-3xl font-bold text-white">32</span>
+                <span className="pb-1 text-[10px] text-slate-500">/100</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-slate-800">
+                <div className="h-full w-[32%] rounded-full bg-gradient-to-r from-emerald-400 to-cyan-400" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-700/70 bg-slate-950/40 p-4">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>Momentum</span>
+                <span className="font-mono text-amber-300">Strong</span>
+              </div>
+              <div className="mt-3 flex items-end gap-2">
+                <span className="font-mono text-3xl font-bold text-white">78</span>
+                <span className="pb-1 text-[10px] text-slate-500">/100</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-slate-800">
+                <div className="h-full w-[78%] rounded-full bg-gradient-to-r from-amber-400 to-yellow-300" />
+              </div>
+            </div>
+
+            <div className="rounded-2xl border border-slate-700/70 bg-slate-950/40 p-4">
+              <div className="flex items-center justify-between text-[11px] text-slate-400">
+                <span>Liquidity</span>
+                <span className="font-mono text-indigo-300">Healthy</span>
+              </div>
+              <div className="mt-3 flex items-end gap-2">
+                <span className="font-mono text-3xl font-bold text-white">84</span>
+                <span className="pb-1 text-[10px] text-slate-500">/100</span>
+              </div>
+              <div className="mt-3 h-2 rounded-full bg-slate-800">
+                <div className="h-full w-[84%] rounded-full bg-gradient-to-r from-indigo-400 to-violet-400" />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-[2rem] border border-slate-800/80 bg-slate-900/70 p-6 shadow-xl">
+          <div className="flex items-center justify-between mb-5">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-400">
+                Action Queue
+              </p>
+              <h3 className="mt-2 text-xl font-bold text-white">Priority list</h3>
+            </div>
+            <button className="rounded-full border border-amber-500/30 bg-amber-500/10 px-2 py-1 text-[10px] font-bold text-amber-300">
+              3 open
+            </button>
+          </div>
+
+          <div className="space-y-3">
+            {[
+              { label: "NVDA breakout check", tone: "amber" },
+              { label: "TSLA alert rebalancing", tone: "green" },
+              { label: "Portfolio drift scan", tone: "blue" },
+            ].map((item) => (
+              <div key={item.label} className="flex items-center justify-between rounded-2xl border border-slate-800 bg-slate-950/60 px-3 py-2.5">
+                <div className="flex items-center gap-3">
+                  <span className={`h-2.5 w-2.5 rounded-full ${item.tone === "amber" ? "bg-amber-400" : item.tone === "green" ? "bg-emerald-400" : "bg-cyan-400"}`} />
+                  <span className="text-sm font-medium text-slate-200">{item.label}</span>
+                </div>
+                <ChevronRight className="h-4 w-4 text-slate-500" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -1225,7 +988,7 @@ function SettingsTab() {
 }
 
 // ============================================================================
-// 5. MAIN ENTERPRISE DASHBOARD CONTAINER
+// MAIN ENTERPRISE DASHBOARD CONTAINER
 // ============================================================================
 
 export default function StreetLevelDashboard() {
