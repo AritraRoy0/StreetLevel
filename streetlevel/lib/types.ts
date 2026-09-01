@@ -4,6 +4,8 @@ export type TabType =
   | "analytics"
   | "signals"
   | "portfolio"
+  | "performance"
+  | "insights"
   | "settings";
 
 export interface StockItem {
