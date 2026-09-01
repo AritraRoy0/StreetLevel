@@ -16,7 +16,7 @@ import {
 } from "lucide-react";
 import { DashboardFooter } from "@/components/dashboard-footer";
 import { DashboardNav, DashboardTopBar } from "@/components/dashboard-nav";
-import { INITIAL_PORTFOLIO, MOCK_NEWS, MOCK_STOCKS } from "@/lib/mock-data";
+import { INITIAL_PORTFOLIO, MOCK_HISTORY, MOCK_NEWS, MOCK_STOCKS } from "@/lib/mock-data";
 import type { NewsItem, StockItem, TabType } from "@/lib/types";
 
 function Sparkline({ values, dark = false }: { values: number[]; dark?: boolean }) {
@@ -67,7 +67,33 @@ function Watchlist({ stocks, onSelect }: { stocks: StockItem[]; onSelect: (stock
   return <div className="space-y-10"><SectionHeading eyebrow="Coverage / {stocks.length} assets" title="Watchlist" /><div className="flex flex-col gap-4 border-y border-black py-4 sm:flex-row"><label className="relative flex-1"><Search className="absolute left-0 top-2 h-4 w-4 text-neutral-500" /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search by symbol, company, or sector" className="h-8 w-full border-0 bg-transparent pl-7 text-sm text-black outline-none placeholder:text-neutral-500" /></label><button className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-black"><Filter className="h-4 w-4" /> Filter</button><button className="inline-flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-neutral-500 hover:text-black"><SlidersHorizontal className="h-4 w-4" /> Columns</button></div><div className="grid gap-x-10 md:grid-cols-2">{filtered.map((stock) => <StockRow key={`${stock.symbol}-${stock.name}`} stock={stock} onSelect={onSelect} />)}</div></div>;
 }
 
+function ContinuousChart({
+  series,
+}: {
+  series: { label: string; values: number[]; color: string }[];
+}) {
+  const width = 900;
+  const height = 280;
+  return <div className="space-y-4"><svg viewBox={`0 0 ${width} ${height}`} className="h-auto w-full overflow-visible" role="img" aria-label="Continuous quantitative analytics chart"><line x1="0" x2={width} y1="70" y2="70" stroke="#e5e5e5" /><line x1="0" x2={width} y1="140" y2="140" stroke="#e5e5e5" /><line x1="0" x2={width} y1="210" y2="210" stroke="#e5e5e5" />{series.map((item) => { const itemMin = Math.min(...item.values); const itemMax = Math.max(...item.values); const itemRange = itemMax - itemMin || 1; const points = item.values.map((value, index) => `${(index / Math.max(item.values.length - 1, 1)) * width},${height - ((value - itemMin) / itemRange) * (height - 20) - 10}`).join(" "); return <polyline key={item.label} points={points} fill="none" stroke={item.color} strokeWidth="2" vectorEffect="non-scaling-stroke" />; })}</svg><div className="flex flex-wrap gap-5 text-[10px] font-bold uppercase tracking-wider text-neutral-500">{series.map((item) => <span key={item.label} className="inline-flex items-center gap-2"><i className="h-2 w-2 rounded-full bg-black" />{item.label}</span>)}</div></div>;
+}
+
 function Analytics({ stocks }: { stocks: StockItem[] }) {
+  const sectors = ["All sectors", ...Array.from(new Set(stocks.map((stock) => stock.sector)))];
+  const [selectedSector, setSelectedSector] = useState("All sectors");
+  const [selected, setSelected] = useState(stocks[0].symbol);
+  const [metric, setMetric] = useState<"price" | "momentum" | "risk">("price");
+  const sectorStocks = selectedSector === "All sectors" ? stocks : stocks.filter((stock) => stock.sector === selectedSector);
+  const stock = sectorStocks.find((item) => item.symbol === selected) ?? sectorStocks[0] ?? stocks[0];
+  const history = MOCK_HISTORY[stock.symbol] ?? [];
+  const sectorChange = sectorStocks.reduce((sum, item) => sum + item.change, 0) / sectorStocks.length;
+  const sectorRsi = sectorStocks.reduce((sum, item) => sum + item.signals.rsi, 0) / sectorStocks.length;
+  const range = stock.high52 - stock.low52;
+  const position = ((stock.price - stock.low52) / range) * 100;
+  const series = metric === "price" ? [{ label: "Price", values: history.map((point) => point.price), color: "#111" }, { label: "SMA 20", values: history.map((point) => point.sma20), color: "#888" }] : metric === "momentum" ? [{ label: "RSI", values: history.map((point) => point.rsi), color: "#111" }] : [{ label: "Volatility", values: history.map((point) => point.volatility), color: "#111" }, { label: "Drawdown", values: history.map((point) => point.drawdown), color: "#888" }];
+  return <div className="space-y-12"><SectionHeading eyebrow="Technical review / 180 observations" title="Analytics" /><div className="grid gap-4 border-y border-black py-4 md:grid-cols-[1fr_1fr_auto] md:items-center"><label className="flex items-center gap-3"><span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Sector</span><select value={selectedSector} onChange={(event) => { const next = event.target.value; const nextStocks = next === "All sectors" ? stocks : stocks.filter((item) => item.sector === next); setSelectedSector(next); setSelected(nextStocks[0]?.symbol ?? stocks[0].symbol); }} className="min-w-0 bg-transparent font-mono text-sm font-bold text-black outline-none">{sectors.map((sector) => <option key={sector}>{sector}</option>)}</select></label><label className="flex items-center gap-3"><span className="text-[10px] font-bold uppercase tracking-wider text-neutral-500">Stock</span><select value={stock.symbol} onChange={(event) => setSelected(event.target.value)} className="min-w-0 bg-transparent font-mono text-sm font-bold text-black outline-none">{sectorStocks.map((item) => <option key={item.symbol}>{item.symbol}</option>)}</select></label><span className="text-xs text-neutral-500">{history.length} sessions / updated 14:32:08 ET</span></div><div className="grid gap-8 border-b border-black py-8 sm:grid-cols-3"><Metric label="Sector change" value={`${sectorChange >= 0 ? "+" : ""}${sectorChange.toFixed(2)}%`} note={`${sectorStocks.length} stocks in scope`} large /><Metric label="Average RSI" value={sectorRsi.toFixed(1)} note="14-period momentum" large /><Metric label="Selected stock" value={stock.symbol} note={`${stock.marketCap} market cap`} large /></div><div className="border-b border-black pb-10"><div className="mb-8 flex flex-wrap items-center justify-between gap-4"><div><p className="text-[10px] font-bold uppercase tracking-[0.18em] text-neutral-500">Continuous series</p><p className="mt-2 text-sm text-neutral-600">Compare normalized observations across the selected window.</p></div><div className="flex border border-neutral-300 p-1">{([["price", "Price / SMA"], ["momentum", "RSI"], ["risk", "Risk"]] as const).map(([value, label]) => <button key={value} onClick={() => setMetric(value)} className={`px-3 py-2 text-[10px] font-bold uppercase tracking-wider ${metric === value ? "bg-black text-white" : "text-neutral-500 hover:text-black"}`}>{label}</button>)}</div></div><ContinuousChart series={series} /><div className="mt-4 flex justify-between text-[10px] uppercase tracking-wider text-neutral-500"><span>{history[0]?.timestamp}</span><span>{history.at(-1)?.timestamp}</span></div></div><div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-4"><Metric label="Last price" value={`$${stock.price.toFixed(2)}`} note={`${stock.change >= 0 ? "+" : ""}${stock.change.toFixed(2)}% today`} /><Metric label="RSI / 14" value={String(stock.signals.rsi)} note="Momentum oscillator" /><Metric label="52 week position" value={`${position.toFixed(0)}%`} note={`$${stock.low52.toFixed(0)} — $${stock.high52.toFixed(0)}`} /><Metric label="Z-score" value={`${stock.signals.zScore.toFixed(1)}σ`} note="Distance from mean" /></div></div>;
+}
+
+export function LegacyAnalytics({ stocks }: { stocks: StockItem[] }) {
   const sectors = ["All sectors", ...Array.from(new Set(stocks.map((stock) => stock.sector)))];
   const [selectedSector, setSelectedSector] = useState("All sectors");
   const [selected, setSelected] = useState(stocks[0].symbol);

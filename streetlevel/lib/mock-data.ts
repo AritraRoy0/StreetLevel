@@ -1,4 +1,4 @@
-import { StockItem, NewsItem, PortfolioPosition } from "./types";
+import { HistoricalPoint, StockItem, NewsItem, PortfolioPosition } from "./types";
 
 export const MOCK_STOCKS: StockItem[] = [
   {
@@ -443,6 +443,44 @@ export const MOCK_STOCKS: StockItem[] = [
     },
   },
 ];
+
+// A deterministic 180-session series keeps the demo analytical without
+// introducing random values that shift on every render.
+function buildHistory(stock: StockItem): HistoricalPoint[] {
+  const seed = stock.symbol.split("").reduce((total, character) => total + character.charCodeAt(0), 0);
+  let peak = stock.price;
+  return Array.from({ length: 180 }, (_, index) => {
+    const wave = Math.sin((index + seed) * 0.21) * 0.012;
+    const drift = (index - 90) * (stock.change / 10000);
+    const price = stock.price * (1 + wave + drift);
+    const previous = index === 0 ? price * 0.997 : stock.price * (1 + Math.sin((index - 1 + seed) * 0.21) * 0.012 + ((index - 1) - 90) * (stock.change / 10000));
+    const open = previous;
+    const high = Math.max(open, price) * (1 + 0.002 + (index % 5) * 0.0006);
+    const low = Math.min(open, price) * (1 - 0.002 - (index % 4) * 0.0005);
+    const volume = Math.round(parseFloat(stock.volume) * 1000000 * (0.72 + ((index * 17 + seed) % 43) / 100));
+    const rsi = Math.max(24, Math.min(78, 50 + Math.sin((index + seed) * 0.13) * 18 + stock.change * 1.4));
+    const sma20 = stock.price * (1 + Math.sin((index + seed) * 0.08) * 0.009 + drift * 0.7);
+    const volatility = 12 + Math.abs(Math.sin((index + seed) * 0.11)) * 16 + Math.abs(stock.change);
+    peak = Math.max(peak, price);
+    const drawdown = ((price - peak) / peak) * 100;
+    return {
+      timestamp: `2026-${String(Math.floor(index / 30) + 1).padStart(2, "0")}-${String((index % 30) + 1).padStart(2, "0")}`,
+      price: Number(price.toFixed(2)),
+      open: Number(open.toFixed(2)),
+      high: Number(high.toFixed(2)),
+      low: Number(low.toFixed(2)),
+      volume,
+      rsi: Number(rsi.toFixed(1)),
+      sma20: Number(sma20.toFixed(2)),
+      volatility: Number(volatility.toFixed(1)),
+      drawdown: Number(drawdown.toFixed(2)),
+    };
+  });
+}
+
+export const MOCK_HISTORY: Record<string, HistoricalPoint[]> = Object.fromEntries(
+  MOCK_STOCKS.map((stock) => [stock.symbol, buildHistory(stock)]),
+);
 
 export const MOCK_NEWS: NewsItem[] = [
   {
