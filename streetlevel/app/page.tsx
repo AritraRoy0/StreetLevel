@@ -4,7 +4,8 @@ import { useState } from "react";
 import { Footer } from "@/components/footer";
 import { Nav, TopBar } from "@/components/nav";
 import { OverviewView } from "@/components/overview-view";
-import { MOCK_NEWS, MOCK_STOCKS } from "@/lib/mock-data";
+import { MOCK_NEWS } from "@/lib/mock-data";
+import { STOCKS } from "@/lib/market-data";
 
 export default function HomePage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
@@ -34,7 +35,7 @@ export default function HomePage() {
             <span>UTC -04:00</span>
           </div>
         </div>
-        <OverviewView stocks={MOCK_STOCKS} news={MOCK_NEWS} />
+        <OverviewView stocks={STOCKS} news={MOCK_NEWS} />
         <Footer />
       </main>
     </div>

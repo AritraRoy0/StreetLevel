@@ -5,12 +5,12 @@ import { MoreHorizontal, Plus } from "lucide-react";
 import { Footer } from "@/components/footer";
 import { Nav, TopBar } from "@/components/nav";
 import { SectionHeading } from "@/components/market-ui";
-import { MOCK_STOCKS } from "@/lib/mock-data";
+import { STOCKS } from "@/lib/market-data";
 
 export default function SignalsPage() {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [filter, setFilter] = useState("All");
-  const signals = useMemo(() => MOCK_STOCKS.filter((stock) => filter === "All" || stock.signals.sentiment === filter), [filter]);
+  const signals = useMemo(() => STOCKS.filter((stock) => filter === "All" || stock.signals.sentiment === filter), [filter]);
 
   return (
     <div className="min-h-screen bg-white text-black">
