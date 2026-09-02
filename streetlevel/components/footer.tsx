@@ -1,4 +1,4 @@
-export function DashboardFooter() {
+export function Footer() {
   return (
     <footer className="mt-20 border-t border-black px-0 py-8">
       <div className="flex flex-col gap-3 text-[10px] uppercase tracking-[0.18em] text-neutral-500 sm:flex-row sm:items-center sm:justify-between">
