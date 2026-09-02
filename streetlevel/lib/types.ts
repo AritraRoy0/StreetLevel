@@ -21,6 +21,7 @@ export interface StockItem {
   high52: number;
   low52: number;
   sparkline: number[];
+  history?: HistoricalPoint[];
   signals: {
     rsi: number;
     sma50: number;
@@ -28,6 +29,19 @@ export interface StockItem {
     zScore: number;
     sentiment: "Bullish" | "Bearish" | "Neutral";
   };
+}
+
+export interface HistoricalPoint {
+  timestamp: string;
+  price: number;
+  open: number;
+  high: number;
+  low: number;
+  volume: number;
+  rsi: number;
+  sma20: number;
+  volatility: number;
+  drawdown: number;
 }
 
 export interface NewsItem {
