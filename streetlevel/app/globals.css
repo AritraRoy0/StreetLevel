@@ -3,6 +3,7 @@
 :root {
   --background: #ffffff;
   --foreground: #0a0a0a;
+  --accent: #16805b;
   --muted: #737373;
   --panel: #ffffff;
   --border: #d4d4d4;
@@ -27,6 +28,12 @@ body {
   background: #ffffff;
   color: var(--foreground);
   font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+}
+
+.hero-grid {
+  background-image: linear-gradient(rgba(22, 128, 91, 0.07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(22, 128, 91, 0.07) 1px, transparent 1px);
+  background-size: 32px 32px;
 }
 
 * {

@@ -32,10 +32,10 @@ const items: NavigationItem[] = [
 
 export function Nav({ activeTab, sidebarOpen, onSidebarToggle }: NavProps) {
   return (
-    <nav aria-label="Primary navigation" className="border-b border-black bg-black text-white">
+    <nav aria-label="Primary navigation" className="border-b border-[#27322d] bg-[#101512] text-white">
       <div className="mx-auto flex min-h-16 max-w-[1500px] items-center gap-5 px-5 sm:px-10 lg:px-16">
         <Link href="/" className="flex shrink-0 items-center gap-3 border-r border-white/20 pr-5">
-          <span className="flex h-9 w-9 items-center justify-center bg-white font-mono text-xs font-bold text-black">SL</span>
+          <span className="flex h-9 w-9 items-center justify-center bg-[#c5f4df] font-mono text-xs font-bold text-[#101512]">SL</span>
           <span className="hidden text-xs font-bold uppercase tracking-[0.2em] sm:inline">StreetLevel</span>
         </Link>
         <div className="flex min-w-0 flex-1 items-center gap-1 overflow-x-auto">
@@ -49,7 +49,7 @@ export function Nav({ activeTab, sidebarOpen, onSidebarToggle }: NavProps) {
                 href={item.href}
                 aria-current={active ? "page" : undefined}
                 className={`nav-item relative flex shrink-0 items-center gap-2 overflow-hidden border-b-2 px-3 py-5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
-                  active ? "border-white bg-white text-black" : "border-transparent text-neutral-400 hover:border-white/50 hover:text-white"
+                  active ? "border-[#c5f4df] bg-[#c5f4df] text-[#101512]" : "border-transparent text-neutral-400 hover:border-[#c5f4df]/50 hover:text-white"
                 }`}
                 style={{ animationDelay: `${index * 45}ms` }}
               >
