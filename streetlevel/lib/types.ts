@@ -44,6 +44,43 @@ export interface HistoricalPoint {
   drawdown: number;
 }
 
+export type AnalyticsInterval = "1m" | "5m" | "15m" | "30m" | "1h" | "1d" | "1w";
+
+export interface HistoricalDataPoint {
+  timestamp: string;
+  open: number;
+  high: number;
+  low: number;
+  close: number;
+  volume: number;
+}
+
+export interface HistoricalSeriesResponse {
+  symbol: string;
+  interval: AnalyticsInterval;
+  start: string;
+  end: string;
+  timezone: "UTC";
+  data: HistoricalDataPoint[];
+  metadata: {
+    source: "mysql" | "provider" | "aggregated";
+    cached: boolean;
+    pointCount: number;
+  };
+}
+
+export interface LatestQuote {
+  symbol: string;
+  price: number;
+  open?: number;
+  high?: number;
+  low?: number;
+  previousClose?: number;
+  volume?: number;
+  timestamp: string;
+  timezone: "UTC";
+}
+
 export interface NewsItem {
   id: string;
   title: string;
