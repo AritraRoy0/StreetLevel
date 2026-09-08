@@ -406,23 +406,11 @@ A local environment file can be used for development:
 .env.local
 ```
 
-## Analytics API
-
-The analytics routes use the checked-in daily Yahoo Finance dataset in `lib/data/historical-prices.json`. They are Next.js route handlers; this repository does not currently configure MySQL, Firestore, authentication, or a runtime market-data provider.
-
-- `GET /api/analytics/:symbol/history?start=2026-01-01T00:00:00Z&end=2026-09-01T00:00:00Z&interval=1d`
-- `GET /api/analytics/:symbol/quote`
-- `GET /api/analytics/quotes?symbols=AAPL,MSFT,NVDA`
-
-History responses use UTC timestamps and the normalized `{ timestamp, open, high, low, close, volume }` point shape. Supported intervals are `1m`, `5m`, `15m`, `30m`, `1h`, `1d`, and `1w`; only `1d` is currently backed by the bundled dataset. Invalid symbols, dates, ranges, and intervals return `{ "error": { "code": "...", "message": "..." } }` with HTTP 400.
-
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
-
+Keep secrets out of source control.
 
 ## Design Principles
 
-StreetLevel foll
-ows a few core engineering principles:
+StreetLevel follows a few core engineering principles:
 
 - **Data should be normalized at the boundary.**
 - **The frontend should not depend on provider-specific response formats.**
