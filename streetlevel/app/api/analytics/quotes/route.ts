@@ -1,17 +1,34 @@
-import { NextResponse } from "next/server";
-import { analyticsErrorResponse } from "@/lib/analytics-api";
-import { getLatestQuote, hasSymbol } from "@/lib/analytics-data";
-import { validateSymbol } from "@/lib/analytics-validation";
+import { handleRoute } from "@/lib/analytics-api";
+import { quoteCache } from "@/lib/analytics-cache";
+import { getQuote } from "@/lib/analytics-data";
+import { validateSymbolList } from "@/lib/analytics-validation";
+import { hasSymbol } from "@/lib/market-data";
 
+/**
+ * `GET /api/analytics/quotes?symbols=AAPL,MSFT`
+ *
+ * A batch request succeeds partially: symbols with no coverage are listed
+ * under `missing` rather than failing the whole call, so one bad ticker in a
+ * watchlist does not blank the row for every other holding.
+ */
 export async function GET(request: Request) {
-  try {
-    const values = new URL(request.url).searchParams.get("symbols")?.split(",") ?? [];
-    if (!values.length) return NextResponse.json({ error: { code: "INVALID_SYMBOL", message: "symbols must contain at least one symbol." } }, { status: 400 });
-    const symbols = values.map(validateSymbol);
-    const unsupported = symbols.find((symbol) => !hasSymbol(symbol));
-    if (unsupported) return NextResponse.json({ error: { code: "NOT_FOUND", message: `Unsupported symbol: ${unsupported}.` } }, { status: 404 });
-    return NextResponse.json({ data: symbols.map((symbol) => getLatestQuote(symbol)) });
-  } catch (error) {
-    return analyticsErrorResponse(error, NextResponse.json);
-  }
+  return handleRoute(
+    request,
+    {
+      cache: quoteCache,
+      cacheKey: (req) => `batch:${(new URL(req.url).searchParams.get("symbols") ?? "").toUpperCase()}`,
+      maxAge: 15,
+    },
+    () => {
+      const symbols = validateSymbolList(new URL(request.url).searchParams.get("symbols"));
+      const covered = symbols.filter(hasSymbol);
+      const missing = symbols.filter((symbol) => !hasSymbol(symbol));
+
+      return {
+        data: covered.map(getQuote),
+        missing,
+        requested: symbols.length,
+      };
+    },
+  );
 }

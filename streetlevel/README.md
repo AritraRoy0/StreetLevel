@@ -1,46 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# StreetLevel
 
-## Getting Started
-
-First, run the development server:
+A market research workspace built with Next.js. Price analytics, technical
+indicators, benchmark comparison and portfolio attribution, all computed from
+one validated bar series.
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm run dev        # development server on http://localhost:3000
+npm run build      # production build
+npm test           # analytics test suite
+npm run typecheck  # tsc --noEmit
+npm run lint       # eslint
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## Layout
+
+| Path | Purpose |
+| --- | --- |
+| `lib/analytics/` | The engine. Pure functions, no React, no network. |
+| `lib/market-data.ts` | Data access. Loads and validates the bundled dataset. |
+| `lib/analytics-validation.ts` | Request validation and the error contract. |
+| `lib/analytics-cache.ts` | In-process TTL cache and rate limiter. |
+| `components/charts/` | SVG charts, with geometry split out as pure functions. |
+| `components/ui.tsx` | The primitive set: metrics, panels, controls, tables. |
+| `docs/analytics.md` | Formulas, edge cases, rounding and null behaviour. |
+| `tests/` | 354 tests over the engine, the charts and the API. |
+
+## Pages
+
+- `/` coverage, market aggregates and the news wire
+- `/analytics/[symbol]` the single-symbol workspace
+- `/portfolio` position and portfolio attribution
+- `/signals` rule conditions currently met across the coverage list
+- `/performance` every name measured against the SL10 composite
+
+## Data
+
+The bundled dataset is a daily Yahoo Finance download in
+`lib/data/historical-prices.json`: ten symbols, 252 sessions, 2 September 2025
+to 1 September 2026. Everything the app renders passes through `normalizeBars`
+first, so a malformed row is treated exactly as one from a live provider would
+be: rejected, counted, and reported in the data-quality banner rather than
+allowed to poison a metric.
+
+Because the snapshot is fixed, the app will report itself as behind whenever the
+real date has moved on. That is the staleness path working, not a defect.
+
+Intraday intervals are not in the dataset. The interval picker shows them
+disabled with the reason, rather than hiding them, and the API returns 422 with
+an explanation. Weekly and monthly bars are aggregated from the daily series.
+
+No index series ships with the data, so the house benchmark `SL10` is an
+equal-weight composite of the ten covered names, rebased to 100 at inception. It
+is labelled as that, not as a proxy for a published index.
+
+The news feed and the portfolio transaction log are illustrative fixtures
+written for this demonstration, labelled as such in the UI. Swap
+`lib/news-data.ts` and `lib/portfolio-data.ts` for real sources; nothing else
+needs to change.
 
 ## Analytics API
 
-The analytics routes use the checked-in daily Yahoo Finance dataset in `lib/data/historical-prices.json`. They are Next.js route handlers; this repository does not currently configure MySQL, Firestore, authentication, or a runtime market-data provider.
-
-- `GET /api/analytics/:symbol/history?start=2026-01-01T00:00:00Z&end=2026-09-01T00:00:00Z&interval=1d`
+- `GET /api/analytics/:symbol/history?interval=1d&range=1Y`
+- `GET /api/analytics/:symbol/history?start=…&end=…` (ISO-8601 UTC)
 - `GET /api/analytics/:symbol/quote`
-- `GET /api/analytics/quotes?symbols=AAPL,MSFT,NVDA`
+- `GET /api/analytics/:symbol/summary?range=1Y&interval=1d`
+- `GET /api/analytics/quotes?symbols=AAPL,MSFT`
 
-History responses use UTC timestamps and the normalized `{ timestamp, open, high, low, close, volume }` point shape. Supported intervals are `1m`, `5m`, `15m`, `30m`, `1h`, `1d`, and `1w`; only `1d` is currently backed by the bundled dataset. Invalid symbols, dates, ranges, and intervals return `{ "error": { "code": "...", "message": "..." } }` with HTTP 400.
+Errors are `{ error: { code, message, action? } }` with a fixed status per code.
+See `docs/analytics.md` for the full contract.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Tests
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+The suite runs on Node's built-in test runner with type stripping, so it needs
+no test framework and no build step:
 
-## Learn More
+```bash
+npm test
+```
 
-To learn more about Next.js, take a look at the following resources:
+This is why the modules inside `lib/analytics` import each other with explicit
+`.ts` specifiers, and why `allowImportingTsExtensions` is set in `tsconfig.json`.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
-
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
-
-## Deploy on Vercel
-
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+RSI and EMA are verified against published reference values and against second
+implementations transcribed separately from the formulas. The integration tests
+re-derive the headline figures from the raw JSON with inline arithmetic, so the
+engine is checked against something other than itself.

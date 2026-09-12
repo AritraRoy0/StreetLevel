@@ -6,25 +6,28 @@ import "./globals.css";
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
+  display: "swap",
 });
 
 const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
+  display: "swap",
 });
 
 export const metadata: Metadata = {
-  title: "StreetLevel | Modern city insight",
-  description: "A polished app shell built with Next.js, Tailwind CSS, and modern UI tooling.",
+  title: {
+    default: "StreetLevel",
+    template: "%s / StreetLevel",
+  },
+  description:
+    "A market research workspace: price analytics, technical indicators, benchmark comparison and portfolio attribution.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
-    <html
-      lang="en"
-      className={`${geistSans.variable} ${geistMono.variable} h-full scroll-smooth antialiased`}
-    >
-      <body className="min-h-full bg-slate-100 text-slate-900">
+    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body className="min-h-screen bg-paper text-ink">
         {children}
         <Analytics />
       </body>

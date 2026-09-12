@@ -1,14 +1,15 @@
-import { NextResponse } from "next/server";
-import { analyticsErrorResponse } from "@/lib/analytics-api";
-import { getLatestQuote, hasSymbol } from "@/lib/analytics-data";
+import { handleRoute } from "@/lib/analytics-api";
+import { quoteCache } from "@/lib/analytics-cache";
+import { getQuote } from "@/lib/analytics-data";
 import { validateSymbol } from "@/lib/analytics-validation";
 
-export async function GET(_request: Request, { params }: { params: Promise<{ symbol: string }> }) {
-  try {
-    const symbol = validateSymbol((await params).symbol);
-    if (!hasSymbol(symbol)) return NextResponse.json({ error: { code: "NOT_FOUND", message: `Unsupported symbol: ${symbol}.` } }, { status: 404 });
-    return NextResponse.json(getLatestQuote(symbol));
-  } catch (error) {
-    return analyticsErrorResponse(error, NextResponse.json);
-  }
+/** `GET /api/analytics/:symbol/quote` returns the latest bar as a quote. */
+export async function GET(request: Request, { params }: { params: Promise<{ symbol: string }> }) {
+  const { symbol: rawSymbol } = await params;
+
+  return handleRoute(
+    request,
+    { cache: quoteCache, cacheKey: () => rawSymbol.toUpperCase(), maxAge: 15 },
+    () => getQuote(validateSymbol(rawSymbol)),
+  );
 }
