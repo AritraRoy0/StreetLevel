@@ -1,35 +1,57 @@
-import { NextResponse } from "next/server";
-import { analyticsErrorResponse } from "@/lib/analytics-api";
-import { getDatasetBounds, getHistoricalRows, hasSymbol } from "@/lib/analytics-data";
-import { INTERVAL_CONFIG, validateDateRange, validateInterval, validateSymbol } from "@/lib/analytics-validation";
-import type { HistoricalSeriesResponse } from "@/lib/types";
+import { handleRoute } from "@/lib/analytics-api";
+import { historyCache } from "@/lib/analytics-cache";
+import { getHistory } from "@/lib/analytics-data";
+import {
+  requireAvailableInterval,
+  validateDateRange,
+  validateInterval,
+  validateRange,
+  validateSymbol,
+} from "@/lib/analytics-validation";
 
+/**
+ * `GET /api/analytics/:symbol/history`
+ *
+ * Query parameters:
+ * - `interval` one of `1d`, `1w`, `1mo` (default `1d`)
+ * - `range` one of the named presets (default `1Y`), used when no explicit
+ *   window is given
+ * - `start` and `end` ISO-8601 UTC timestamps; both are required together and
+ *   take precedence over `range`
+ */
 export async function GET(request: Request, { params }: { params: Promise<{ symbol: string }> }) {
-  try {
-    const symbol = validateSymbol((await params).symbol);
-    if (!hasSymbol(symbol)) return NextResponse.json({ error: { code: "NOT_FOUND", message: `Unsupported symbol: ${symbol}.` } }, { status: 404 });
-    const query = new URL(request.url).searchParams;
-    const interval = validateInterval(query.get("interval"));
-    if (!INTERVAL_CONFIG[interval].providerAvailable && !INTERVAL_CONFIG[interval].databaseAvailable) {
-      return NextResponse.json({ error: { code: "INVALID_INTERVAL", message: `${interval} data is not available.` } }, { status: 400 });
-    }
-    const bounds = getDatasetBounds(symbol);
-    if (!bounds.start || !bounds.end) return NextResponse.json({ error: { code: "NOT_FOUND", message: "No historical data available." } }, { status: 404 });
-    const startValue = query.get("start") ?? bounds.start.toISOString();
-    const endValue = query.get("end") ?? bounds.end.toISOString();
-    const { start, end } = validateDateRange(startValue, endValue, interval);
-    const data = getHistoricalRows(symbol, start, end);
-    const response: HistoricalSeriesResponse = {
-      symbol,
-      interval,
-      start: start.toISOString(),
-      end: end.toISOString(),
-      timezone: "UTC",
-      data,
-      metadata: { source: "provider", cached: true, pointCount: data.length },
-    };
-    return NextResponse.json(response);
-  } catch (error) {
-    return analyticsErrorResponse(error, NextResponse.json);
-  }
+  const { symbol: rawSymbol } = await params;
+
+  return handleRoute(
+    request,
+    {
+      cache: historyCache,
+      cacheKey: (req) => {
+        const query = new URL(req.url).searchParams;
+        return [
+          rawSymbol.toUpperCase(),
+          query.get("interval") ?? "1d",
+          query.get("range") ?? "1Y",
+          query.get("start") ?? "",
+          query.get("end") ?? "",
+        ].join("|");
+      },
+      maxAge: 60,
+    },
+    () => {
+      const symbol = validateSymbol(rawSymbol);
+      const query = new URL(request.url).searchParams;
+      const interval = requireAvailableInterval(validateInterval(query.get("interval")));
+
+      const startValue = query.get("start");
+      const endValue = query.get("end");
+
+      if (startValue && endValue) {
+        const { start, end } = validateDateRange(startValue, endValue, interval);
+        return getHistory(symbol, { interval, start, end });
+      }
+
+      return getHistory(symbol, { interval, range: validateRange(query.get("range")) });
+    },
+  );
 }

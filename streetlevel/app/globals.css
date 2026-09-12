@@ -1,59 +1,105 @@
 @import "tailwindcss";
 
+/**
+ * StreetLevel design tokens.
+ *
+ * The palette is deliberately narrow: paper, ink, three greys, one accent, and
+ * a matched pair for gain and loss. A research tool earns trust by being quiet,
+ * so colour is reserved for things that carry meaning. Everything structural is
+ * a one-pixel hairline.
+ *
+ * Gain and loss are not pure red and green. Both are desaturated and darkened
+ * until they pass AA contrast on paper, which also keeps a screen full of
+ * numbers from looking like a slot machine.
+ */
+@theme {
+  --color-paper: #fbfbfa;
+  --color-surface: #ffffff;
+  --color-sunken: #f4f5f3;
+
+  --color-ink: #0e100f;
+  --color-ink-soft: #3c413e;
+  --color-muted: #6c726f;
+  --color-faint: #9aa09b;
+
+  --color-hairline: #e5e6e3;
+  --color-hairline-strong: #c8ccc6;
+
+  --color-accent: #166f4e;
+  --color-accent-ink: #0f5138;
+  --color-accent-wash: #edf4f0;
+
+  --color-pos: #15704e;
+  --color-neg: #9c2b1c;
+  --color-warn: #8a6116;
+
+  --radius-xs: 2px;
+  --radius-sm: 3px;
+
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
+}
+
 :root {
-  --background: #ffffff;
-  --foreground: #0a0a0a;
-  --accent: #16805b;
-  --muted: #737373;
-  --panel: #ffffff;
-  --border: #d4d4d4;
-  --shadow: 0 18px 50px rgba(0, 0, 0, 0.08);
-}
-
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
-html {
-  background: var(--background);
-  color: var(--foreground);
-  scroll-behavior: smooth;
-}
-
-body {
-  min-height: 100vh;
-  background: #ffffff;
-  color: var(--foreground);
-  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
-}
-
-.hero-grid {
-  background-image: linear-gradient(rgba(22, 128, 91, 0.07) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(22, 128, 91, 0.07) 1px, transparent 1px);
-  background-size: 32px 32px;
+  /* Chart series colours, referenced from component code by name. */
+  --chart-price: #0e100f;
+  --chart-price-fill: rgba(14, 16, 15, 0.06);
+  --chart-ma-1: #166f4e;
+  --chart-ma-2: #8a6116;
+  --chart-ma-3: #7c7f8c;
+  --chart-ma-4: #2f6f9e;
+  --chart-ma-5: #96558a;
+  --chart-benchmark: #9aa09b;
+  --chart-grid: #ecedea;
+  --chart-axis: #c8ccc6;
+  --chart-pos: #15704e;
+  --chart-neg: #9c2b1c;
+  --chart-crosshair: #0e100f;
 }
 
 * {
   box-sizing: border-box;
 }
 
-html, body {
-  scrollbar-color: #999 #ffffff;
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-text-size-adjust: 100%;
 }
 
-body::-webkit-scrollbar {
-  width: 10px;
+body {
+  min-height: 100vh;
+  margin: 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-size: 14px;
+  line-height: 1.55;
+  letter-spacing: -0.005em;
+  -webkit-font-smoothing: antialiased;
 }
 
-body::-webkit-scrollbar-track {
-  background: #ffffff;
+/**
+ * Every figure on the site is set in tabular numerals so columns of prices
+ * line up on the decimal point and a changing value does not shift its
+ * neighbours sideways.
+ */
+.tnum,
+table,
+.font-mono {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
 }
 
-body::-webkit-scrollbar-thumb {
-  background: #999;
+::selection {
+  background: var(--color-ink);
+  color: var(--color-surface);
+}
+
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+  border-radius: 1px;
 }
 
 button,
@@ -61,62 +107,107 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
-::selection {
-  background: #000;
-  color: #fff;
+/* A restrained scrollbar that does not compete with the content. */
+html {
+  scrollbar-color: var(--color-hairline-strong) transparent;
+  scrollbar-width: thin;
 }
 
-@keyframes nav-enter {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
 }
 
-@keyframes nav-sweep {
-  from { transform: translateX(-120%); }
-  to { transform: translateX(120%); }
+::-webkit-scrollbar-track {
+  background: transparent;
 }
 
-@keyframes nav-dot {
-  0%, 100% { transform: translateX(-50%) scale(1); }
-  50% { transform: translateX(-50%) scale(1.45); }
+::-webkit-scrollbar-thumb {
+  background: var(--color-hairline-strong);
+  border: 3px solid var(--color-paper);
+  border-radius: 6px;
 }
 
-.nav-item {
-  animation: nav-enter 500ms cubic-bezier(.22, 1, .36, 1) both;
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-faint);
 }
 
-.nav-sweep {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(90deg, transparent, rgba(0, 0, 0, .07), transparent);
-  transform: translateX(-120%);
+/* The faint measured grid behind the masthead. */
+.grid-field {
+  background-image:
+    linear-gradient(var(--color-hairline) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-hairline) 1px, transparent 1px);
+  background-size: 44px 44px;
+  background-position: -1px -1px;
 }
 
-.nav-item:hover .nav-sweep {
-  animation: nav-sweep 600ms ease-out;
+@keyframes sl-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
 }
 
-.nav-dot {
-  animation: nav-dot 2s ease-in-out infinite;
+.sl-enter {
+  animation: sl-fade-up 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sl-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.sl-live-dot {
+  animation: sl-pulse 2.4s ease-in-out infinite;
+}
+
+@keyframes sl-shimmer {
+  from {
+    background-position: -180% 0;
+  }
+  to {
+    background-position: 180% 0;
+  }
+}
+
+/**
+ * Loading skeletons. The shimmer is slow and low-contrast on purpose: a
+ * skeleton should read as "not ready yet", not as a second thing to look at.
+ */
+.sl-skeleton {
+  background-image: linear-gradient(
+    90deg,
+    var(--color-sunken) 0%,
+    var(--color-hairline) 50%,
+    var(--color-sunken) 100%
+  );
+  background-size: 220% 100%;
+  animation: sl-shimmer 1.6s linear infinite;
+  border-radius: var(--radius-xs);
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .nav-item,
-  .nav-dot,
-  .nav-item:hover .nav-sweep {
+  .sl-enter,
+  .sl-live-dot,
+  .sl-skeleton {
     animation: none;
   }
 }
 
-.mono-dashboard {
-  filter: grayscale(1);
+/* Charts must never force the page into a horizontal scroll. */
+.chart-surface {
+  touch-action: pan-y;
 }
 
-.mono-dashboard button:focus-visible,
-.mono-dashboard a:focus-visible,
-.mono-dashboard select:focus-visible {
-  outline: 2px solid #fff;
-  outline-offset: 3px;
+.chart-surface text {
+  user-select: none;
 }
-

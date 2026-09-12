@@ -11,6 +11,10 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // The analytics modules import each other with explicit `.ts` specifiers so
+    // Node's test runner can resolve the graph directly under type stripping,
+    // with no build step and no test-runner dependency.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [

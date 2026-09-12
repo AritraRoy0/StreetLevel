@@ -1,7 +1,21 @@
-import historicalPrices from "./data/historical-prices.json";
-import type { HistoricalPoint, StockItem } from "./types";
+/**
+ * The market-data access layer.
+ *
+ * The bundled dataset is a daily Yahoo Finance download checked into
+ * `lib/data/historical-prices.json`. Everything the app renders flows through
+ * `normalizeBars` first, so a malformed row in the file is treated exactly the
+ * way a malformed row from a live provider would be: rejected, counted, and
+ * reported in the data-quality banner rather than allowed to poison a metric.
+ *
+ * Swapping the file for a live provider means replacing `loadRawSymbols` and
+ * nothing else.
+ */
 
-type RawPrice = {
+import historicalPrices from "./data/historical-prices.json";
+import { buildCompositeIndex, buildSummary, normalizeBars } from "@/lib/analytics";
+import type { AnalyticsSummary, Bar, DataQuality } from "@/lib/analytics";
+
+interface RawPriceRow {
   date: string;
   open: number;
   high: number;
@@ -9,110 +23,227 @@ type RawPrice = {
   close: number;
   adjustedClose: number;
   volume: number;
-};
+}
 
-type HistoricalPriceFile = {
+interface PriceFile {
   source: string;
   downloadedAt: string;
   interval: string;
   from: string;
   to: string;
-  symbols: Record<string, RawPrice[]>;
+  symbols: Record<string, RawPriceRow[]>;
+}
+
+export interface SymbolProfile {
+  symbol: string;
+  name: string;
+  sector: string;
+  /** Market capitalisation in USD. */
+  marketCap: number;
+  peRatio: number;
+  description: string;
+}
+
+const priceFile = historicalPrices as PriceFile;
+
+function loadRawSymbols(): Record<string, RawPriceRow[]> {
+  return priceFile.symbols ?? {};
+}
+
+export const PROFILES: Record<string, SymbolProfile> = {
+  NVDA: {
+    symbol: "NVDA",
+    name: "NVIDIA Corporation",
+    sector: "Semiconductors",
+    marketCap: 3.16e12,
+    peRatio: 74.2,
+    description: "Designs the accelerators and networking that most large-scale AI training runs on.",
+  },
+  AAPL: {
+    symbol: "AAPL",
+    name: "Apple Inc.",
+    sector: "Consumer Electronics",
+    marketCap: 3.52e12,
+    peRatio: 34.5,
+    description: "Hardware, silicon and a services business with recurring, high-margin revenue.",
+  },
+  MSFT: {
+    symbol: "MSFT",
+    name: "Microsoft Corporation",
+    sector: "Software & Cloud",
+    marketCap: 3.28e12,
+    peRatio: 38.9,
+    description: "Enterprise software and Azure, with AI capacity now the swing factor in growth.",
+  },
+  AMZN: {
+    symbol: "AMZN",
+    name: "Amazon.com, Inc.",
+    sector: "E-Commerce & Cloud",
+    marketCap: 1.94e12,
+    peRatio: 51.4,
+    description: "Retail logistics at scale plus AWS, which carries most of the operating income.",
+  },
+  GOOGL: {
+    symbol: "GOOGL",
+    name: "Alphabet Inc.",
+    sector: "Internet & Services",
+    marketCap: 2.22e12,
+    peRatio: 27.8,
+    description: "Search advertising funding cloud, YouTube and a large research portfolio.",
+  },
+  META: {
+    symbol: "META",
+    name: "Meta Platforms, Inc.",
+    sector: "Internet & Services",
+    marketCap: 1.54e12,
+    peRatio: 28.1,
+    description: "Social advertising with heavy reinvestment into ranking models and compute.",
+  },
+  TSLA: {
+    symbol: "TSLA",
+    name: "Tesla, Inc.",
+    sector: "Automotive & Clean Energy",
+    marketCap: 8.154e11,
+    peRatio: 92.1,
+    description: "Vehicle manufacturing and energy storage, valued largely on future autonomy.",
+  },
+  AVGO: {
+    symbol: "AVGO",
+    name: "Broadcom Inc.",
+    sector: "Semiconductors",
+    marketCap: 7.62e11,
+    peRatio: 42.1,
+    description: "Custom silicon and infrastructure software, levered to hyperscaler capital spending.",
+  },
+  AMD: {
+    symbol: "AMD",
+    name: "Advanced Micro Devices, Inc.",
+    sector: "Semiconductors",
+    marketCap: 2.492e11,
+    peRatio: 115.4,
+    description: "CPU and GPU designer competing for data-centre accelerator share.",
+  },
+  PLTR: {
+    symbol: "PLTR",
+    name: "Palantir Technologies Inc.",
+    sector: "Software & AI",
+    marketCap: 6.68e11,
+    peRatio: 82,
+    description: "Data integration and decision software sold to governments and large enterprises.",
+  },
 };
 
-const priceFile = historicalPrices as HistoricalPriceFile;
-
-const STOCK_DETAILS: Record<string, Pick<StockItem, "name" | "sector" | "marketCap" | "peRatio">> = {
-  NVDA: { name: "NVIDIA Corporation", sector: "Semiconductors", marketCap: "$3.16T", peRatio: 74.2 },
-  AAPL: { name: "Apple Inc.", sector: "Consumer Electronics", marketCap: "$3.52T", peRatio: 34.5 },
-  MSFT: { name: "Microsoft Corporation", sector: "Software & Cloud", marketCap: "$3.28T", peRatio: 38.9 },
-  AMZN: { name: "Amazon.com, Inc.", sector: "E-Commerce & Cloud", marketCap: "$1.94T", peRatio: 51.4 },
-  GOOGL: { name: "Alphabet Inc.", sector: "Internet & Services", marketCap: "$2.22T", peRatio: 27.8 },
-  META: { name: "Meta Platforms Inc.", sector: "Internet & Services", marketCap: "$1.54T", peRatio: 28.1 },
-  TSLA: { name: "Tesla, Inc.", sector: "Automotive & Clean Energy", marketCap: "$815.4B", peRatio: 92.1 },
-  AVGO: { name: "Broadcom Inc.", sector: "Semiconductors", marketCap: "$76.2B", peRatio: 42.1 },
-  AMD: { name: "Advanced Micro Devices", sector: "Semiconductors", marketCap: "$249.2B", peRatio: 115.4 },
-  PLTR: { name: "Palantir Technologies Inc.", sector: "Software & AI", marketCap: "$66.8B", peRatio: 82 },
-};
-
-function average(values: number[]) {
-  return values.reduce((sum, value) => sum + value, 0) / Math.max(values.length, 1);
+function profileFor(symbol: string): SymbolProfile {
+  return (
+    PROFILES[symbol] ?? {
+      symbol,
+      name: symbol,
+      sector: "Unclassified",
+      marketCap: Number.NaN,
+      peRatio: Number.NaN,
+      description: "No profile on file for this symbol.",
+    }
+  );
 }
 
-function standardDeviation(values: number[]) {
-  const mean = average(values);
-  return Math.sqrt(average(values.map((value) => (value - mean) ** 2)));
-}
+const rawSymbols = loadRawSymbols();
 
-function buildHistory(rows: RawPrice[]): HistoricalPoint[] {
-  let peak = rows[0]?.adjustedClose ?? 0;
+const normalized = Object.fromEntries(
+  Object.entries(rawSymbols).map(([symbol, rows]) => [symbol, normalizeBars(rows)]),
+);
 
-  return rows.map((row, index) => {
-    const closes = rows.slice(Math.max(0, index - 19), index + 1).map((item) => item.adjustedClose);
-    const returns = rows.slice(Math.max(1, index - 19), index + 1).map((item, returnIndex) => {
-      const previous = rows[Math.max(0, index - 19) + returnIndex]?.adjustedClose ?? item.adjustedClose;
-      return previous ? (item.adjustedClose - previous) / previous : 0;
-    });
-    const price = row.adjustedClose;
-    const sma20 = average(closes);
-    const gains = returns.filter((value) => value > 0);
-    const losses = returns.filter((value) => value < 0).map((value) => Math.abs(value));
-    const relativeStrength = average(gains) / Math.max(average(losses), 0.000001);
-    const rsi = returns.length ? 100 - 100 / (1 + relativeStrength) : 50;
-    peak = Math.max(peak, price);
+/** Validated bar history for every covered symbol. */
+export const PRICE_BOOK: Record<string, Bar[]> = Object.fromEntries(
+  Object.entries(normalized).map(([symbol, result]) => [symbol, result.bars]),
+);
 
-    return {
-      timestamp: row.date,
-      price: Number(price.toFixed(2)),
-      open: Number(row.open.toFixed(2)),
-      high: Number(row.high.toFixed(2)),
-      low: Number(row.low.toFixed(2)),
-      volume: row.volume,
-      rsi: Number(Math.max(0, Math.min(100, rsi)).toFixed(1)),
-      sma20: Number(sma20.toFixed(2)),
-      volatility: Number((standardDeviation(returns) * Math.sqrt(252) * 100).toFixed(1)),
-      drawdown: Number((((price - peak) / peak) * 100).toFixed(2)),
-    };
-  });
-}
+/** Validation outcome per symbol, surfaced in the data-quality banner. */
+export const DATA_QUALITY: Record<string, DataQuality> = Object.fromEntries(
+  Object.entries(normalized).map(([symbol, result]) => [symbol, result.quality]),
+);
 
-function toStockItem(symbol: string, rows: RawPrice[]): StockItem {
-  const details = STOCK_DETAILS[symbol];
-  const history = buildHistory(rows);
-  const latest = history.at(-1);
-  if (!latest) throw new Error(`No historical data available for ${symbol}`);
-  const previous = history.at(-2) ?? latest;
-  const closes = history.map((point) => point.price);
-  const changeAmount = (latest?.price ?? 0) - (previous?.price ?? 0);
-  const change = previous?.price ? (changeAmount / previous.price) * 100 : 0;
-  const sma50 = average(closes.slice(-50));
-  const zScore = standardDeviation(closes.slice(-20)) ? (latest.price - average(closes.slice(-20))) / standardDeviation(closes.slice(-20)) : 0;
-  const sentiment = zScore > 0.75 ? "Bullish" : zScore < -0.75 ? "Bearish" : "Neutral";
-  const bollinger = latest.price > latest.sma20 + standardDeviation(closes.slice(-20)) ? "Upper" : latest.price < latest.sma20 - standardDeviation(closes.slice(-20)) ? "Lower" : "Middle";
+export const SYMBOLS: string[] = Object.keys(PRICE_BOOK).filter((symbol) => PRICE_BOOK[symbol].length > 0).sort();
 
-  return {
+export const SECTORS: string[] = Array.from(new Set(SYMBOLS.map((symbol) => profileFor(symbol).sector))).sort();
+
+/**
+ * An equal-weight composite of every covered name, rebased to 100 at the first
+ * date all constituents trade.
+ *
+ * The dataset ships no index series, so this stands in as the house benchmark.
+ * It is an honest equal-weight basket of the coverage list, not a proxy for
+ * the S&P 500, and the UI labels it that way.
+ */
+export const COMPOSITE_SYMBOL = "SL10";
+
+export const COMPOSITE_BARS: Bar[] = buildCompositeIndex(SYMBOLS.map((symbol) => PRICE_BOOK[symbol]));
+
+export const BENCHMARKS: Array<{ symbol: string; label: string; description: string }> = [
+  { symbol: COMPOSITE_SYMBOL, label: "SL10 composite", description: "Equal-weight basket of all ten covered names" },
+  ...SYMBOLS.map((symbol) => ({
     symbol,
-    ...details,
-    price: latest.price,
-    change: Number(change.toFixed(2)),
-    changeAmount: Number(changeAmount.toFixed(2)),
-    volume: `${(latest.volume / 1_000_000).toFixed(1)}M`,
-    high52: Math.max(...rows.map((row) => row.high)),
-    low52: Math.min(...rows.map((row) => row.low)),
-    sparkline: closes.slice(-20),
-    history,
-    signals: {
-      rsi: latest.rsi,
-      sma50: Number(sma50.toFixed(2)),
-      bollinger,
-      zScore: Number(zScore.toFixed(2)),
-      sentiment,
-    },
-  };
+    label: symbol,
+    description: profileFor(symbol).name,
+  })),
+];
+
+/** Bars for any symbol including the composite benchmark. */
+export function getBars(symbol: string): Bar[] {
+  if (symbol === COMPOSITE_SYMBOL) return COMPOSITE_BARS;
+  return PRICE_BOOK[symbol] ?? [];
 }
 
-export const HISTORICAL_PRICES = priceFile.symbols;
-export const HISTORICAL_SOURCE = priceFile.source;
-export const HISTORICAL_DOWNLOADED_AT = priceFile.downloadedAt;
-export const STOCKS: StockItem[] = Object.entries(HISTORICAL_PRICES).map(([symbol, rows]) => toStockItem(symbol, rows));
-export const HISTORY: Record<string, HistoricalPoint[]> = Object.fromEntries(STOCKS.map((stock) => [stock.symbol, stock.history ?? []]));
+export function getProfile(symbol: string): SymbolProfile {
+  if (symbol === COMPOSITE_SYMBOL) {
+    return {
+      symbol: COMPOSITE_SYMBOL,
+      name: "StreetLevel 10 composite",
+      sector: "Composite index",
+      marketCap: Number.NaN,
+      peRatio: Number.NaN,
+      description: "Equal-weight index of the ten names covered by this workspace, rebased to 100 at inception.",
+    };
+  }
+  return profileFor(symbol);
+}
+
+export function hasSymbol(symbol: string): boolean {
+  return symbol === COMPOSITE_SYMBOL || Object.prototype.hasOwnProperty.call(PRICE_BOOK, symbol);
+}
+
+/** Metadata about the bundled dataset, shown in the footer and the freshness badge. */
+export const DATASET = {
+  source: priceFile.source,
+  downloadedAt: priceFile.downloadedAt,
+  interval: priceFile.interval,
+  from: priceFile.from,
+  to: priceFile.to,
+  symbolCount: SYMBOLS.length,
+};
+
+/**
+ * One-year snapshots for every symbol, used by the coverage tables and the
+ * signal board. Built once at module load; the dataset is static, so there is
+ * nothing to invalidate and no reason to recompute per request.
+ */
+export const SNAPSHOTS: Record<string, AnalyticsSummary> = Object.fromEntries(
+  SYMBOLS.map((symbol) => [symbol, buildSummary(symbol, PRICE_BOOK[symbol], { range: "1Y" })]),
+);
+
+export interface SymbolRow {
+  symbol: string;
+  profile: SymbolProfile;
+  summary: AnalyticsSummary;
+}
+
+export const SYMBOL_ROWS: SymbolRow[] = SYMBOLS.map((symbol) => ({
+  symbol,
+  profile: getProfile(symbol),
+  summary: SNAPSHOTS[symbol],
+}));
+
+/** Closing prices of the last `count` sessions, for sparklines. */
+export function sparklineFor(symbol: string, count = 40): number[] {
+  const bars = getBars(symbol);
+  return bars.slice(-count).map((bar) => bar.adjClose);
+}
