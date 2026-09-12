@@ -39,10 +39,32 @@ import {
   formatPrice,
   formatVolume,
 } from "@/lib/analytics";
-import type { Bar, EventMarker, Maybe } from "@/lib/analytics";
+import type { Bar, Maybe } from "@/lib/analytics";
 import { cn } from "@/lib/utils";
 
 export type ChartType = "area" | "line" | "candles";
+
+/**
+ * A point of interest pinned to a bar.
+ *
+ * Deliberately domain-agnostic: news events and trade entries and exits are
+ * both just annotations on a session. Giving the chart a news-shaped marker
+ * type would have forced a second chart for trades.
+ */
+export interface ChartMarker {
+  /** Index into the full bar array the chart was given. */
+  index: number;
+  timestamp: string;
+  tone: "positive" | "negative" | "neutral";
+  /** Short label drawn beside the marker, one or two characters. */
+  glyph?: string;
+  /** Title for the hover tooltip. */
+  title: string;
+  /** Extra lines shown when the marker is selected. */
+  lines?: string[];
+  /** Draw below the price instead of above it, for exits against entries. */
+  below?: boolean;
+}
 
 export interface Overlay {
   key: string;
@@ -98,9 +120,9 @@ export function PriceChart({
   band?: { upper: Maybe[]; lower: Maybe[]; color: string } | null;
   showVolume?: boolean;
   panes?: IndicatorPane[];
-  markers?: EventMarker[];
+  markers?: ChartMarker[];
   height?: number;
-  onMarkerSelect?: (marker: EventMarker) => void;
+  onMarkerSelect?: (marker: ChartMarker) => void;
   /**
    * `ohlcv` suits a real bar series. `value` suits a single-valued series such
    * as an account-value curve, where open, high, low and volume are synthetic
@@ -307,7 +329,7 @@ export function PriceChart({
   // Markers carry indices into the full series. Translate each into the
   // rendered position it belongs to, snapping to the nearest kept bar when the
   // series has been thinned so a marker never drifts off its session.
-  const markerLookup = new Map<number, EventMarker>();
+  const markerLookup = new Map<string, ChartMarker & { rendered: number }>();
   for (const marker of markers) {
     const local = marker.index - view.offset;
     if (local < 0 || local >= view.bars.length) continue;
@@ -324,7 +346,13 @@ export function PriceChart({
         if (selection[i] > local) break;
       }
     }
-    if (rendered >= 0 && rendered < count) markerLookup.set(rendered, marker);
+    // Keyed by position and side so an entry and an exit on one bar both draw.
+    if (rendered >= 0 && rendered < count) {
+      markerLookup.set(`${rendered}:${marker.below ? "below" : "above"}:${marker.glyph ?? ""}`, {
+        ...marker,
+        rendered,
+      });
+    }
   }
 
   return (
@@ -455,27 +483,49 @@ export function PriceChart({
           />
         ))}
 
-        {/* News event markers, pinned to the session that traded on the story. */}
-        {Array.from(markerLookup.entries()).map(([index, marker]) => {
-          const cx = x(index);
+        {/*
+          Annotations pinned to a session: news events above the axis, trade
+          exits below the entries so a same-bar pair stays legible.
+        */}
+        {Array.from(markerLookup.entries()).map(([key, marker]) => {
+          const cx = x(marker.rendered);
           const colour =
-            marker.sentiment === "positive"
+            marker.tone === "positive"
               ? "var(--chart-pos)"
-              : marker.sentiment === "negative"
+              : marker.tone === "negative"
                 ? "var(--chart-neg)"
                 : "var(--color-faint)";
+          const baseY = marker.below ? priceHeight - 4 : priceHeight - 18;
           return (
             <g
-              key={`marker-${marker.timestamp}`}
+              key={key}
               className="cursor-pointer"
               onClick={(event) => {
                 event.stopPropagation();
                 onMarkerSelect?.(marker);
               }}
             >
-              <title>{`${marker.articles.length} ${marker.articles.length === 1 ? "story" : "stories"} on ${formatDate(marker.timestamp)}`}</title>
-              <line x1={cx} x2={cx} y1={priceHeight - 16} y2={priceHeight - 6} stroke={colour} strokeWidth={1} />
-              <circle cx={cx} cy={priceHeight - 18} r={3} fill="var(--color-surface)" stroke={colour} strokeWidth={1.25} />
+              <title>{`${marker.title} · ${formatDate(marker.timestamp)}`}</title>
+              <line
+                x1={cx}
+                x2={cx}
+                y1={marker.below ? baseY - 8 : baseY + 2}
+                y2={marker.below ? baseY - 2 : baseY + 12}
+                stroke={colour}
+                strokeWidth={1}
+              />
+              <circle cx={cx} cy={baseY} r={3.5} fill="var(--color-surface)" stroke={colour} strokeWidth={1.25} />
+              {marker.glyph && (
+                <text
+                  x={cx}
+                  y={baseY + 2.5}
+                  textAnchor="middle"
+                  style={{ fontSize: 6, fontWeight: 700 }}
+                  fill={colour}
+                >
+                  {marker.glyph}
+                </text>
+              )}
             </g>
           );
         })}

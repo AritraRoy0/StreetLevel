@@ -14,7 +14,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { PriceChart } from "@/components/charts/price-chart";
-import type { ChartType, IndicatorPane, Overlay } from "@/components/charts/price-chart";
+import type { ChartMarker, ChartType, IndicatorPane, Overlay } from "@/components/charts/price-chart";
 import { ComparisonPanel } from "@/components/analytics/comparison-panel";
 import { IndicatorSummary, RiskSummary } from "@/components/analytics/indicator-summary";
 import { MovingAverageTable, PeriodPerformance } from "@/components/analytics/performance-tables";
@@ -55,7 +55,6 @@ import {
 import type {
   Bar,
   DataQuality,
-  EventMarker,
   Interval,
   NewsArticle,
   PositionMetrics,
@@ -118,16 +117,32 @@ export function AnalyticsView({
   const [showVolume, setShowVolume] = useState(true);
   const [panes, setPanes] = useState<Set<PaneKey>>(new Set<PaneKey>(["rsi"]));
   const [showMarkers, setShowMarkers] = useState(true);
-  const [activeMarker, setActiveMarker] = useState<EventMarker | null>(null);
+  const [activeMarker, setActiveMarker] = useState<ChartMarker | null>(null);
 
   const summary = useMemo(
     () => buildSummary(symbol, bars, { range, interval }),
     [symbol, bars, range, interval],
   );
 
-  const markers = useMemo(
+  /**
+   * News events, mapped onto the chart's domain-agnostic marker type. The
+   * grouped articles are kept alongside so a click can still open them.
+   */
+  const eventMarkers = useMemo(
     () => (showMarkers ? buildEventMarkers(news, summary.bars.map((bar) => bar.timestamp)) : []),
     [news, summary.bars, showMarkers],
+  );
+
+  const markers: ChartMarker[] = useMemo(
+    () =>
+      eventMarkers.map((marker) => ({
+        index: marker.index,
+        timestamp: marker.timestamp,
+        tone: marker.sentiment,
+        title: `${marker.articles.length} ${marker.articles.length === 1 ? "story" : "stories"}`,
+        lines: marker.articles.map((article) => `${article.source} — ${article.title}`),
+      })),
+    [eventMarkers],
   );
 
   const chartOverlays: Overlay[] = useMemo(
@@ -470,9 +485,9 @@ export function AnalyticsView({
               <div className="min-w-0">
                 <Eyebrow>{formatDate(activeMarker.timestamp)}</Eyebrow>
                 <ul className="mt-1.5 space-y-1">
-                  {activeMarker.articles.map((article) => (
-                    <li key={article.id} className="text-[12px] leading-snug text-ink-soft">
-                      <span className="font-semibold text-ink">{article.source}</span> — {article.title}
+                  {(activeMarker.lines ?? [activeMarker.title]).map((line) => (
+                    <li key={line} className="text-[12px] leading-snug text-ink-soft">
+                      {line}
                     </li>
                   ))}
                 </ul>
