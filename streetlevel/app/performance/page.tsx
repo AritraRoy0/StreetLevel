@@ -1,66 +1,40 @@
-import Link from "next/link";
 import { Footer, PageHeader, PageShell, StatusStrip, TopNav } from "@/components/shell";
-import { Delta, Metric, MetricCell, MetricGrid, Panel, PanelHeader, TableScroll, Td, Th } from "@/components/ui";
-import { ComparisonChart } from "@/components/charts/comparison-chart";
-import {
-  COMPOSITE_BARS,
-  COMPOSITE_SYMBOL,
-  DATA_QUALITY,
-  DATASET,
-  PRICE_BOOK,
-  SYMBOL_ROWS,
-  SYMBOLS,
-} from "@/lib/market-data";
-import {
-  buildSummary,
-  compareToBenchmark,
-  correlationMatrix,
-  averagePairwiseCorrelation,
-  EMPTY,
-  formatPercent,
-  formatRatio,
-  mean,
-} from "@/lib/analytics";
+import { PerformanceTabs } from "@/components/performance/performance-tabs";
+import { CrossSectionView } from "@/components/performance/cross-section-view";
+import { COMPOSITE_BARS, DATA_QUALITY, DATASET, PRICE_BOOK, SYMBOLS } from "@/lib/market-data";
 
 export const metadata = { title: "Performance" };
 
-export default function PerformancePage() {
+/**
+ * The performance page.
+ *
+ * Two views share it: a backtest workspace, and the cross-sectional comparison
+ * the page used to be. The full price book is handed to the workspace so every
+ * parameter change is a local recomputation rather than a request.
+ *
+ * The strategy is read from `searchParams` **here**, on the server, rather than
+ * with `useSearchParams` in the client component. Reading it in the client
+ * makes a prerendered page bail out to client-only rendering, so the first
+ * paint was a skeleton and the results only appeared after hydration. Taking it
+ * as a prop renders the whole run server-side and makes a shared link show its
+ * result immediately.
+ */
+export default async function PerformancePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const params = await searchParams;
   const quality = DATA_QUALITY[SYMBOLS[0]];
-  const composite = buildSummary(COMPOSITE_SYMBOL, COMPOSITE_BARS, { range: "1Y" });
 
-  /** Each name measured against the equal-weight composite over the same window. */
-  const relative = SYMBOL_ROWS.map((row) => ({
-    symbol: row.symbol,
-    sector: row.profile.sector,
-    comparison: compareToBenchmark(row.summary.bars, COMPOSITE_BARS, {
-      baseSymbol: row.symbol,
-      benchmarkSymbol: COMPOSITE_SYMBOL,
-    }),
-    summary: row.summary,
-  })).sort((a, b) => (b.comparison.excessReturn ?? 0) - (a.comparison.excessReturn ?? 0));
+  // Flatten to a query string so the client and the server agree on one parser.
+  const query = new URLSearchParams();
+  for (const [key, value] of Object.entries(params)) {
+    if (typeof value === "string") query.set(key, value);
+    else if (Array.isArray(value) && value.length > 0) query.set(key, value[0]);
+  }
 
-  const sectors = Array.from(new Set(SYMBOL_ROWS.map((row) => row.profile.sector))).map((sector) => {
-    const members = SYMBOL_ROWS.filter((row) => row.profile.sector === sector);
-    return {
-      sector,
-      count: members.length,
-      periodReturn: mean(
-        members.map((row) => row.summary.periodReturn).filter((value): value is number => value !== null),
-      ),
-      volatility: mean(
-        members
-          .map((row) => row.summary.volatility.annualized)
-          .filter((value): value is number => value !== null),
-      ),
-      drawdown: mean(
-        members.map((row) => row.summary.drawdown.maxDrawdown).filter((value): value is number => value !== null),
-      ),
-    };
-  }).sort((a, b) => (b.periodReturn ?? 0) - (a.periodReturn ?? 0));
-
-  const matrix = correlationMatrix(SYMBOLS.map((symbol) => ({ symbol, bars: PRICE_BOOK[symbol] })));
-  const best = relative[0];
-  const worst = relative[relative.length - 1];
+  const datasetNote = `The bundled dataset holds ${SYMBOLS.length} symbols and ${quality?.pointCount ?? 0} daily sessions, from ${DATASET.from} to ${DATASET.to}. There are no intraday bars.`;
 
   return (
     <>
@@ -69,198 +43,23 @@ export default function PerformancePage() {
         asOf={quality?.lastBar ?? null}
         source={DATASET.source}
         stale={quality?.stale}
-        note="Trailing twelve months"
+        note="Backtest and cross-section"
       />
       <PageShell>
         <PageHeader
-          eyebrow="Relative to the SL10 composite"
+          eyebrow="Simulation and relative strength"
           title="Performance"
-          description="Every name measured against an equal-weight basket of the coverage list, aligned on the sessions both actually traded."
+          description="Run a rule over the bundled history under stated cost and fill assumptions, or compare every covered name against the equal-weight composite."
         />
 
-        <section className="mb-10">
-          <MetricGrid>
-            <MetricCell>
-              <Metric
-                label="Composite return"
-                value={formatPercent(composite.periodReturn, { signed: true })}
-                hint="Equal-weight, trailing year"
-                size="lg"
-              />
-            </MetricCell>
-            <MetricCell>
-              <Metric
-                label="Composite volatility"
-                value={formatPercent(composite.volatility.annualized)}
-                hint={`${composite.volatility.observations} daily returns`}
-                size="lg"
-              />
-            </MetricCell>
-            <MetricCell>
-              <Metric
-                label="Widest outperformance"
-                value={formatPercent(best?.comparison.excessReturn, { signed: true })}
-                hint={best?.symbol}
-                size="lg"
-              />
-            </MetricCell>
-            <MetricCell>
-              <Metric
-                label="Average correlation"
-                value={formatRatio(averagePairwiseCorrelation(matrix.matrix))}
-                hint="Pairwise, daily returns"
-                size="lg"
-              />
-            </MetricCell>
-          </MetricGrid>
-        </section>
-
-        <Panel className="mb-10">
-          <PanelHeader
-            title={`${best?.symbol ?? EMPTY} against the composite`}
-            eyebrow="Widest spread in the coverage list"
-          />
-          <div className="p-4">
-            {best && (
-              <ComparisonChart
-                points={best.comparison.normalized}
-                baseLabel={best.symbol}
-                benchmarkLabel={COMPOSITE_SYMBOL}
-                height={220}
-              />
-            )}
-          </div>
-          <p className="border-t border-hairline px-4 py-2.5 text-[11px] text-muted">
-            {best?.symbol} leads the basket by {formatPercent(best?.comparison.excessReturn)} over the year;{" "}
-            {worst?.symbol} trails it by {formatPercent(Math.abs(worst?.comparison.excessReturn ?? 0))}.
-          </p>
-        </Panel>
-
-        <section className="grid gap-10 xl:grid-cols-[1.4fr_1fr]">
-          <Panel className="min-w-0">
-            <PanelHeader title="Relative strength" eyebrow="Ranked by excess return" />
-            <TableScroll>
-              <table className="w-full min-w-[720px] border-collapse">
-                <thead>
-                  <tr>
-                    <Th>Symbol</Th>
-                    <Th align="right">Return</Th>
-                    <Th align="right">Excess</Th>
-                    <Th align="right">Beta</Th>
-                    <Th align="right">Correlation</Th>
-                    <Th align="right">Tracking error</Th>
-                    <Th align="right" className="hidden lg:table-cell">
-                      Info ratio
-                    </Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {relative.map((row) => (
-                    <tr key={row.symbol} className="hover:bg-sunken">
-                      <Td>
-                        <Link href={`/analytics/${row.symbol}`} className="font-mono text-[12px] font-semibold text-ink">
-                          {row.symbol}
-                        </Link>
-                        <span className="mt-0.5 block max-w-[150px] truncate text-[11px] text-muted">{row.sector}</span>
-                      </Td>
-                      <Td align="right">
-                        <Delta value={row.comparison.baseReturn} />
-                      </Td>
-                      <Td align="right">
-                        <Delta value={row.comparison.excessReturn} />
-                      </Td>
-                      <Td align="right">{formatRatio(row.comparison.beta)}</Td>
-                      <Td align="right">{formatRatio(row.comparison.correlation)}</Td>
-                      <Td align="right">{formatPercent(row.comparison.trackingError)}</Td>
-                      <Td align="right" className="hidden lg:table-cell">
-                        {formatRatio(row.comparison.informationRatio)}
-                      </Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableScroll>
-            <p className="border-t border-hairline px-4 py-2.5 text-[11px] leading-relaxed text-muted">
-              Beta is the slope of each name&apos;s daily returns regressed on the composite&apos;s. Tracking error is
-              the annualized deviation of the return difference, and the information ratio divides annualized excess
-              return by it.
-            </p>
-          </Panel>
-
-          <div className="min-w-0 space-y-10">
-            <Panel>
-              <PanelHeader title="By sector" eyebrow="Equal-weight within each group" />
-              <div className="divide-y divide-hairline">
-                {sectors.map((sector) => (
-                  <div key={sector.sector} className="px-4 py-3.5">
-                    <div className="flex items-baseline justify-between gap-3">
-                      <span className="text-[12px] font-semibold text-ink">{sector.sector}</span>
-                      <Delta value={sector.periodReturn} className="text-[12px]" />
-                    </div>
-                    <div className="mt-2 h-1 bg-sunken">
-                      <div
-                        className="h-full bg-ink"
-                        style={{ width: `${Math.min(100, Math.abs((sector.periodReturn ?? 0) * 100))}%` }}
-                      />
-                    </div>
-                    <p className="mt-2 text-[11px] text-muted">
-                      {sector.count} {sector.count === 1 ? "name" : "names"} · volatility{" "}
-                      {formatPercent(sector.volatility)} · average max drawdown {formatPercent(sector.drawdown)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-            </Panel>
-
-            <Panel>
-              <PanelHeader title="Risk lens" eyebrow="Cross-sectional, trailing year" />
-              <div className="grid grid-cols-2 gap-y-5 p-4">
-                <Metric
-                  label="Highest volatility"
-                  value={
-                    formatPercent(
-                      Math.max(
-                        ...SYMBOL_ROWS.map((row) => row.summary.volatility.annualized ?? 0),
-                      ),
-                    )
-                  }
-                  hint={
-                    SYMBOL_ROWS.reduce((worstRow, row) =>
-                      (row.summary.volatility.annualized ?? 0) > (worstRow.summary.volatility.annualized ?? 0)
-                        ? row
-                        : worstRow,
-                    ).symbol
-                  }
-                  size="sm"
-                />
-                <Metric
-                  label="Deepest drawdown"
-                  value={formatPercent(Math.min(...SYMBOL_ROWS.map((row) => row.summary.drawdown.maxDrawdown ?? 0)))}
-                  hint={
-                    SYMBOL_ROWS.reduce((worstRow, row) =>
-                      (row.summary.drawdown.maxDrawdown ?? 0) < (worstRow.summary.drawdown.maxDrawdown ?? 0)
-                        ? row
-                        : worstRow,
-                    ).symbol
-                  }
-                  size="sm"
-                />
-                <Metric
-                  label="Best Sharpe"
-                  value={formatRatio(Math.max(...SYMBOL_ROWS.map((row) => row.summary.sharpe ?? -Infinity)))}
-                  hint="Risk-free rate of zero"
-                  size="sm"
-                />
-                <Metric
-                  label="Composite drawdown"
-                  value={formatPercent(composite.drawdown.maxDrawdown)}
-                  hint="Diversification effect"
-                  size="sm"
-                />
-              </div>
-            </Panel>
-          </div>
-        </section>
+        <PerformanceTabs
+          priceBook={PRICE_BOOK}
+          symbols={SYMBOLS}
+          compositeBars={COMPOSITE_BARS}
+          datasetNote={datasetNote}
+          initialQuery={query.toString()}
+          crossSection={<CrossSectionView />}
+        />
 
         <Footer source={DATASET.source} downloadedAt={DATASET.downloadedAt} />
       </PageShell>

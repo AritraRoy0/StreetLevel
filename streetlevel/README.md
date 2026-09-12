@@ -1,5 +1,23 @@
 # StreetLevel
 
+A market research workspace built with Next.js. Price analytics, technical
+indicators, benchmark comparison and portfolio attribution, all computed from
+one validated bar series.
+
+```bash
+npm run dev        # development server on http://localhost:3001
+npm run build      # production build
+npm run start      # production server on http://localhost:3001
+npm test           # analytics test suite
+npm run typecheck  # tsc --noEmit
+npm run lint       # eslint
+```
+
+Both servers are pinned to port 3001 rather than Next's default 3000, which
+another project on this machine occupies. Override with `-- -p <port>`, for
+example `npm run start -- -p 4000`.
+
+## Layout
 
 | Path | Purpose |
 | --- | --- |
@@ -9,8 +27,10 @@
 | `lib/analytics-cache.ts` | In-process TTL cache and rate limiter. |
 | `components/charts/` | SVG charts, with geometry split out as pure functions. |
 | `components/ui.tsx` | The primitive set: metrics, panels, controls, tables. |
+| `lib/backtest/` | The backtest engine. Signals, execution, sweeps, attribution. |
 | `docs/analytics.md` | Formulas, edge cases, rounding and null behaviour. |
-| `tests/` | 354 tests over the engine, the charts and the API. |
+| `docs/backtest.md` | Fill assumptions, the trade ledger identity, multiple-testing. |
+| `tests/` | 509 tests over the engines, the charts and the API. |
 
 ## Pages
 
@@ -18,7 +38,7 @@
 - `/analytics/[symbol]` the single-symbol workspace
 - `/portfolio` position and portfolio attribution
 - `/signals` rule conditions currently met across the coverage list
-- `/performance` every name measured against the SL10 composite
+- `/performance` a backtest workspace, plus the cross-sectional comparison
 
 ## Data
 
@@ -44,6 +64,21 @@ The news feed and the portfolio transaction log are illustrative fixtures
 written for this demonstration, labelled as such in the UI. Swap
 `lib/news-data.ts` and `lib/portfolio-data.ts` for real sources; nothing else
 needs to change.
+
+## Backtesting
+
+The Performance page runs a trading rule over the bundled history. Eight rules
+are composed from the existing indicators, so a crossover drawn on a chart and
+one traded in a backtest cannot disagree.
+
+Every assumption that changes a result is a named field on the specification and
+is encoded in the URL, so a pasted link reruns the same simulation. Fills happen
+one bar after the signal, a gap through a stop fills at the open, and the
+buy-and-hold benchmark pays the same costs as the strategy.
+
+Parameter sweeps report the distribution across the grid and a deflated Sharpe
+ratio alongside the best cell, because searching a grid raises the best result
+even when every rule in it is worthless. See `docs/backtest.md`.
 
 ## Analytics API
 
