@@ -1,18 +1,5 @@
 # StreetLevel
 
-A market research workspace built with Next.js. Price analytics, technical
-indicators, benchmark comparison and portfolio attribution, all computed from
-one validated bar series.
-
-```bash
-npm run dev        # development server on http://localhost:3000
-npm run build      # production build
-npm test           # analytics test suite
-npm run typecheck  # tsc --noEmit
-npm run lint       # eslint
-```
-
-## Layout
 
 | Path | Purpose |
 | --- | --- |
