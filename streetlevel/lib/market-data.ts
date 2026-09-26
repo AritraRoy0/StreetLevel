@@ -5,10 +5,11 @@
  * `lib/data/historical-prices.json`. Everything the app renders flows through
  * `normalizeBars` first, so a malformed row in the file is treated exactly the
  * way a malformed row from a live provider would be: rejected, counted, and
- * reported in the data-quality banner rather than allowed to poison a metric.
+ * reported in the data-quality notice rather than allowed to poison a metric.
  *
  * Swapping the file for a live provider means replacing `loadRawSymbols` and
- * nothing else.
+ * the file-header fields that feed `DATASET` (source, download time, interval
+ * and date range).
  */
 
 import historicalPrices from "./data/historical-prices.json";
@@ -157,7 +158,7 @@ export const PRICE_BOOK: Record<string, Bar[]> = Object.fromEntries(
   Object.entries(normalized).map(([symbol, result]) => [symbol, result.bars]),
 );
 
-/** Validation outcome per symbol, surfaced in the data-quality banner. */
+/** Validation outcome per symbol, surfaced in the status strip and the data-quality notice. */
 export const DATA_QUALITY: Record<string, DataQuality> = Object.fromEntries(
   Object.entries(normalized).map(([symbol, result]) => [symbol, result.quality]),
 );
@@ -211,7 +212,7 @@ export function hasSymbol(symbol: string): boolean {
   return symbol === COMPOSITE_SYMBOL || Object.prototype.hasOwnProperty.call(PRICE_BOOK, symbol);
 }
 
-/** Metadata about the bundled dataset, shown in the footer and the freshness badge. */
+/** Metadata about the bundled dataset, shown in the status strip and the footer. */
 export const DATASET = {
   source: priceFile.source,
   downloadedAt: priceFile.downloadedAt,
@@ -222,8 +223,9 @@ export const DATASET = {
 };
 
 /**
- * One-year snapshots for every symbol, used by the coverage tables and the
- * signal board. Built once at module load; the dataset is static, so there is
+ * One-year snapshots for every symbol, read through `SYMBOL_ROWS` by the
+ * overview coverage table, the signal board and the performance cross-section.
+ * Built once at module load; the dataset is static, so there is
  * nothing to invalidate and no reason to recompute per request.
  */
 export const SNAPSHOTS: Record<string, AnalyticsSummary> = Object.fromEntries(
@@ -242,7 +244,7 @@ export const SYMBOL_ROWS: SymbolRow[] = SYMBOLS.map((symbol) => ({
   summary: SNAPSHOTS[symbol],
 }));
 
-/** Closing prices of the last `count` sessions, for sparklines. */
+/** Adjusted closing prices of the last `count` sessions, for sparklines. */
 export function sparklineFor(symbol: string, count = 40): number[] {
   const bars = getBars(symbol);
   return bars.slice(-count).map((bar) => bar.adjClose);
