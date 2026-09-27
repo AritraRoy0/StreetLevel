@@ -11,6 +11,10 @@
  * Gain and loss are not pure red and green. Both are desaturated and darkened
  * until they pass AA contrast on paper, which also keeps a screen full of
  * numbers from looking like a slot machine.
+ *
+ * Every text colour, `faint` included, clears 4.5:1 against paper, surface and
+ * sunken in both themes. `faint` used to sit near 2.6:1, which made the
+ * captions that carry a figure's caveats the hardest thing on the page to read.
  */
 @theme {
   --color-paper: #fbfbfa;
@@ -19,8 +23,8 @@
 
   --color-ink: #0e100f;
   --color-ink-soft: #3c413e;
-  --color-muted: #6c726f;
-  --color-faint: #9aa09b;
+  --color-muted: #5c625e;
+  --color-faint: #6b716c;
 
   --color-hairline: #e5e6e3;
   --color-hairline-strong: #c8ccc6;
@@ -33,6 +37,11 @@
   --color-neg: #9c2b1c;
   --color-warn: #8a6116;
 
+  /* The navigation band. It inverts in light mode and sinks below paper in dark. */
+  --color-chrome: #0e100f;
+  --color-chrome-ink: #ffffff;
+  --color-chrome-line: #0e100f;
+
   --radius-xs: 2px;
   --radius-sm: 3px;
 
@@ -40,9 +49,58 @@
   --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, monospace;
 }
 
+/**
+ * Dark theme.
+ *
+ * The same roles, re-derived rather than inverted: paper is a green-tinted
+ * near-black so the accent still reads as part of the family, and gain and loss
+ * are lifted until they clear AA on the darker surfaces. The attribute is set
+ * by an inline script in the root layout before first paint, so there is no
+ * flash of the light theme.
+ */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --color-paper: #0b0d0c;
+  --color-surface: #121514;
+  --color-sunken: #191d1b;
+
+  --color-ink: #eceeeb;
+  --color-ink-soft: #c5cac6;
+  --color-muted: #9aa19c;
+  --color-faint: #7f8681;
+
+  --color-hairline: #232826;
+  --color-hairline-strong: #343a37;
+
+  --color-accent: #4fbf8f;
+  --color-accent-ink: #86d9b3;
+  --color-accent-wash: #13251d;
+
+  --color-pos: #52c08f;
+  --color-neg: #f07a66;
+  --color-warn: #d9a94f;
+
+  --color-chrome: #070908;
+  --color-chrome-ink: #eceeeb;
+  --color-chrome-line: #232826;
+
+  --chart-price-fill: rgba(236, 238, 235, 0.07);
+  --chart-ma-1: #4fbf8f;
+  --chart-ma-2: #d9a94f;
+  --chart-ma-3: #9ea2b3;
+  --chart-ma-4: #6aa9dc;
+  --chart-ma-5: #cf8ac2;
+  --chart-benchmark: #6f7671;
+  --chart-grid: #1d2220;
+  --chart-axis: #343a37;
+}
+
 :root {
+  color-scheme: light;
+
   /* Chart series colours, referenced from component code by name. */
-  --chart-price: #0e100f;
+  --chart-price: var(--color-ink);
   --chart-price-fill: rgba(14, 16, 15, 0.06);
   --chart-ma-1: #166f4e;
   --chart-ma-2: #8a6116;
@@ -52,85 +110,155 @@
   --chart-benchmark: #9aa09b;
   --chart-grid: #ecedea;
   --chart-axis: #c8ccc6;
-  --chart-pos: #15704e;
-  --chart-neg: #9c2b1c;
-  --chart-crosshair: #0e100f;
-}
+  --chart-pos: var(--color-pos);
+  --chart-neg: var(--color-neg);
+  --chart-crosshair: var(--color-ink);
 
-* {
-  box-sizing: border-box;
-}
-
-html {
-  background: var(--color-paper);
-  color: var(--color-ink);
-  -webkit-text-size-adjust: 100%;
-}
-
-body {
-  min-height: 100vh;
-  margin: 0;
-  background: var(--color-paper);
-  color: var(--color-ink);
-  font-family: var(--font-sans);
-  font-size: 14px;
-  line-height: 1.55;
-  letter-spacing: -0.005em;
-  -webkit-font-smoothing: antialiased;
+  /* Height of the sticky navigation, so sticky sub-bars can sit under it. */
+  --nav-height: 3.5rem;
 }
 
 /**
- * Every figure on the site is set in tabular numerals so columns of prices
- * line up on the decimal point and a changing value does not shift its
- * neighbours sideways.
+ * Element defaults.
+ *
+ * These sit in the base layer so Tailwind utilities can override them. Left
+ * unlayered, they outranked every utility regardless of specificity, which is
+ * why `outline-none` never removed the global focus ring from a control that
+ * draws its own.
  */
-.tnum,
-table,
-.font-mono {
-  font-variant-numeric: tabular-nums;
-  font-feature-settings: "tnum" 1;
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-text-size-adjust: 100%;
+    /* In-page anchors and focus should not land underneath the sticky bars. */
+    scroll-padding-top: calc(var(--nav-height) + 4rem);
+  }
+
+  body {
+    min-height: 100vh;
+    margin: 0;
+    background: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.55;
+    letter-spacing: -0.005em;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /**
+   * Every figure on the site is set in tabular numerals so columns of prices
+   * line up on the decimal point and a changing value does not shift its
+   * neighbours sideways.
+   */
+  .tnum,
+  table,
+  .font-mono {
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+  }
+
+  ::selection {
+    background: var(--color-ink);
+    color: var(--color-surface);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+    border-radius: 1px;
+  }
+
+  button,
+  a {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  button:not(:disabled),
+  [role="button"]:not([aria-disabled="true"]),
+  summary {
+    cursor: pointer;
+  }
+
+  /* A restrained scrollbar that does not compete with the content. */
+  html {
+    scrollbar-color: var(--color-hairline-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: var(--color-hairline-strong);
+    border: 3px solid var(--color-paper);
+    border-radius: 6px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--color-faint);
+  }
+
+  /* Native disclosure triangles are replaced by the chevron in the summary. */
+  summary::-webkit-details-marker {
+    display: none;
+  }
+
+  summary {
+    list-style: none;
+  }
+
+  details[open] > summary .sl-disclosure-icon {
+    transform: rotate(90deg);
+  }
+
+  /* Number inputs keep their arrow-key stepping but lose the spinner chrome. */
+  input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+
+  input[type="number"]::-webkit-inner-spin-button,
+  input[type="number"]::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
 }
 
-::selection {
-  background: var(--color-ink);
-  color: var(--color-surface);
+/* Rows of chips that scroll sideways on a phone rather than wrapping. */
+.scrollbar-none {
+  scrollbar-width: none;
 }
 
-:focus-visible {
-  outline: 2px solid var(--color-accent);
-  outline-offset: 2px;
-  border-radius: 1px;
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }
 
-button,
-a {
-  -webkit-tap-highlight-color: transparent;
+/**
+ * Fades the trailing edge of a horizontal scroller so it is visibly cut off,
+ * which is the only affordance that tells a phone user there is more to swipe.
+ */
+.fade-end {
+  mask-image: linear-gradient(to right, #000 calc(100% - 28px), transparent);
 }
 
-/* A restrained scrollbar that does not compete with the content. */
-html {
-  scrollbar-color: var(--color-hairline-strong) transparent;
-  scrollbar-width: thin;
+@media (min-width: 640px) {
+  .fade-end-sm-none {
+    mask-image: none;
+  }
 }
 
-::-webkit-scrollbar {
-  width: 10px;
-  height: 10px;
-}
-
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  background: var(--color-hairline-strong);
-  border: 3px solid var(--color-paper);
-  border-radius: 6px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: var(--color-faint);
-}
 
 /* The faint measured grid behind the masthead. */
 .grid-field {
@@ -154,6 +282,36 @@ html {
 
 .sl-enter {
   animation: sl-fade-up 240ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes sl-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.sl-fade-in {
+  animation: sl-fade-in 160ms ease-out both;
+}
+
+/**
+ * Floating layers (the command palette and the mobile menu) are the one place
+ * a shadow is allowed. They genuinely sit above the page, and a hairline alone
+ * cannot say that.
+ */
+.sl-float {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.06),
+    0 12px 40px -8px rgba(0, 0, 0, 0.22);
+}
+
+:root[data-theme="dark"] .sl-float {
+  box-shadow:
+    0 1px 2px rgba(0, 0, 0, 0.5),
+    0 16px 48px -8px rgba(0, 0, 0, 0.7);
 }
 
 @keyframes sl-pulse {
@@ -197,9 +355,14 @@ html {
 
 @media (prefers-reduced-motion: reduce) {
   .sl-enter,
+  .sl-fade-in,
   .sl-live-dot,
   .sl-skeleton {
     animation: none;
+  }
+
+  html {
+    scroll-behavior: auto;
   }
 }
 

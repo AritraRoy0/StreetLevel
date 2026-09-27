@@ -1,4 +1,4 @@
-import { Footer, PageHeader, PageShell, StatusStrip, TopNav } from "@/components/shell";
+import { Footer, PageHeader, PageShell, StatusStrip } from "@/components/shell";
 import { PerformanceTabs } from "@/components/performance/performance-tabs";
 import { CrossSectionView } from "@/components/performance/cross-section-view";
 import { COMPOSITE_BARS, DATA_QUALITY, DATASET, PRICE_BOOK, SYMBOLS } from "@/lib/market-data";
@@ -17,7 +17,7 @@ export const metadata = { title: "Performance" };
  * makes a prerendered page bail out to client-only rendering, so the first
  * paint was a skeleton and the results only appeared after hydration. Taking it
  * as a prop renders the whole run server-side and makes a shared link show its
- * result immediately.
+ * result immediately. The chosen tab travels the same way, as `view=cross`.
  */
 export default async function PerformancePage({
   searchParams,
@@ -38,7 +38,6 @@ export default async function PerformancePage({
 
   return (
     <>
-      <TopNav />
       <StatusStrip
         asOf={quality?.lastBar ?? null}
         source={DATASET.source}
@@ -58,6 +57,7 @@ export default async function PerformancePage({
           compositeBars={COMPOSITE_BARS}
           datasetNote={datasetNote}
           initialQuery={query.toString()}
+          initialView={query.get("view") === "cross" ? "cross_section" : "backtest"}
           crossSection={<CrossSectionView />}
         />
 

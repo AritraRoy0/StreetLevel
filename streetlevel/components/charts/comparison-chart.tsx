@@ -18,6 +18,7 @@ import { cn } from "@/lib/utils";
 
 const AXIS_WIDTH = 44;
 const BOTTOM_AXIS = 22;
+const DATE_LABEL_WIDTH = 84;
 
 export function ComparisonChart({
   points,
@@ -132,6 +133,29 @@ export function ComparisonChart({
             {active.benchmark !== null && (
               <circle cx={x(activeIndex)} cy={scale(active.benchmark)} r={3} fill="var(--chart-benchmark)" />
             )}
+            {(() => {
+              const labelX = Math.min(Math.max(x(activeIndex), DATE_LABEL_WIDTH / 2), plotWidth - DATE_LABEL_WIDTH / 2);
+              return (
+                <>
+                  <rect
+                    x={labelX - DATE_LABEL_WIDTH / 2}
+                    y={height + 2}
+                    width={DATE_LABEL_WIDTH}
+                    height={BOTTOM_AXIS - 3}
+                    fill="var(--color-ink)"
+                  />
+                  <text
+                    x={labelX}
+                    y={height + BOTTOM_AXIS - 7}
+                    textAnchor="middle"
+                    className="fill-[var(--color-surface)] font-mono"
+                    style={{ fontSize: 10 }}
+                  >
+                    {formatDate(active.timestamp)}
+                  </text>
+                </>
+              );
+            })()}
           </g>
         )}
       </svg>

@@ -1,30 +1,18 @@
-import Link from "next/link";
-import { Footer, PageHeader, PageShell, StatusStrip, TopNav } from "@/components/shell";
-import { Badge, Delta, Panel, PanelHeader, TableScroll, Td, Th } from "@/components/ui";
-import { Sparkline } from "@/components/charts/sparkline";
+import { Footer, PageHeader, PageShell, StatusStrip } from "@/components/shell";
+import { SignalBoard, type ScreenRow, type SignalItem } from "@/components/signals/signal-board";
 import { DATA_QUALITY, DATASET, SYMBOL_ROWS, SYMBOLS } from "@/lib/market-data";
-import { EMPTY, formatDate, formatPercent, formatPoints, formatPrice } from "@/lib/analytics";
+import { formatPercent, formatPoints } from "@/lib/analytics";
 import type { AnalyticsSummary } from "@/lib/analytics";
-import type { Tone } from "@/components/ui";
 
 export const metadata = { title: "Signals" };
-
-interface Signal {
-  symbol: string;
-  name: string;
-  rule: string;
-  detail: string;
-  tone: Tone;
-  timestamp: string | null;
-}
 
 /**
  * Signals are derived from the same summaries the analytics pages render, so a
  * name cannot appear here as overbought while its own page says otherwise.
  * Each rule states the threshold it fired on rather than asserting a verdict.
  */
-function signalsFor(symbol: string, name: string, summary: AnalyticsSummary): Signal[] {
-  const found: Signal[] = [];
+function signalsFor(symbol: string, name: string, summary: AnalyticsSummary): SignalItem[] {
+  const found: SignalItem[] = [];
   const asOf = summary.lastBarTimestamp;
 
   if (summary.rsi.value !== null && summary.rsi.value >= 70) {
@@ -92,7 +80,8 @@ function signalsFor(symbol: string, name: string, summary: AnalyticsSummary): Si
       symbol,
       name,
       rule: "Deep drawdown",
-      detail: `Trading ${formatPercent(summary.drawdown.currentDrawdown)} below its highest close of the past year.`,
+      // The drawdown is negative; "below" already carries the sign.
+      detail: `Trading ${formatPercent(Math.abs(summary.drawdown.currentDrawdown))} below its highest close of the past year.`,
       tone: "negative",
       timestamp: asOf,
     });
@@ -104,12 +93,19 @@ export default function SignalsPage() {
   const quality = DATA_QUALITY[SYMBOLS[0]];
   const signals = SYMBOL_ROWS.flatMap((row) => signalsFor(row.symbol, row.profile.name, row.summary));
 
-  const byRule = new Map<string, number>();
-  for (const signal of signals) byRule.set(signal.rule, (byRule.get(signal.rule) ?? 0) + 1);
+  const screen: ScreenRow[] = SYMBOL_ROWS.map((row) => ({
+    symbol: row.symbol,
+    name: row.profile.name,
+    last: row.summary.lastPrice,
+    rsi: row.summary.rsi.value,
+    percentB: row.summary.bollingerSummary.percentB,
+    vsSma50: row.summary.movingAverages.find((average) => average.label === "SMA 50")?.priceVsMa ?? null,
+    drawdown: row.summary.drawdown.currentDrawdown,
+    spark: row.summary.bars.slice(-60).map((bar) => Number(bar.adjClose.toFixed(2))),
+  }));
 
   return (
     <>
-      <TopNav />
       <StatusStrip
         asOf={quality?.lastBar ?? null}
         source={DATASET.source}
@@ -123,112 +119,7 @@ export default function SignalsPage() {
           description="Every condition below is evaluated from the same validated series the analytics pages use. A signal reports the threshold it crossed; it is not a recommendation."
         />
 
-        <div className="mb-8 flex flex-wrap gap-2">
-          {Array.from(byRule.entries()).map(([rule, count]) => (
-            <Badge key={rule}>
-              {rule} · {count}
-            </Badge>
-          ))}
-          {byRule.size === 0 && <Badge>No conditions currently met</Badge>}
-        </div>
-
-        <Panel>
-          <PanelHeader title="Active conditions" eyebrow={`${signals.length} across ${SYMBOL_ROWS.length} names`} />
-          {signals.length === 0 ? (
-            <p className="px-4 py-10 text-center text-[12px] text-muted">
-              Nothing is currently triggering. Conditions are re-evaluated whenever the dataset updates.
-            </p>
-          ) : (
-            <TableScroll>
-              <table className="w-full min-w-[760px] border-collapse">
-                <thead>
-                  <tr>
-                    <Th>Symbol</Th>
-                    <Th>Rule</Th>
-                    <Th>Detail</Th>
-                    <Th align="right">As of</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {signals.map((signal, index) => (
-                    <tr key={`${signal.symbol}-${signal.rule}-${index}`} className="hover:bg-sunken">
-                      <Td>
-                        <Link href={`/analytics/${signal.symbol}`} className="font-mono text-[12px] font-semibold text-ink">
-                          {signal.symbol}
-                        </Link>
-                        <span className="mt-0.5 block max-w-[160px] truncate text-[11px] text-muted">{signal.name}</span>
-                      </Td>
-                      <Td>
-                        <Badge tone={signal.tone}>{signal.rule}</Badge>
-                      </Td>
-                      <Td className="max-w-[420px] whitespace-normal text-[12px] leading-relaxed">{signal.detail}</Td>
-                      <Td align="right">{formatDate(signal.timestamp)}</Td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </TableScroll>
-          )}
-        </Panel>
-
-        <section className="mt-10">
-          <Panel>
-            <PanelHeader title="Screen" eyebrow="Every covered name, ranked by momentum" />
-            <TableScroll>
-              <table className="w-full min-w-[720px] border-collapse">
-                <thead>
-                  <tr>
-                    <Th>Symbol</Th>
-                    <Th align="right">Last</Th>
-                    <Th align="right">RSI</Th>
-                    <Th align="right">%B</Th>
-                    <Th align="right">Price vs SMA 50</Th>
-                    <Th align="right">Drawdown</Th>
-                    <Th align="right" className="hidden lg:table-cell">
-                      Trend
-                    </Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...SYMBOL_ROWS]
-                    .sort((a, b) => (b.summary.rsi.value ?? 0) - (a.summary.rsi.value ?? 0))
-                    .map((row) => {
-                      const sma50 = row.summary.movingAverages.find((average) => average.label === "SMA 50");
-                      return (
-                        <tr key={row.symbol} className="hover:bg-sunken">
-                          <Td>
-                            <Link href={`/analytics/${row.symbol}`} className="font-mono text-[12px] font-semibold text-ink">
-                              {row.symbol}
-                            </Link>
-                          </Td>
-                          <Td align="right">{formatPrice(row.summary.lastPrice)}</Td>
-                          <Td align="right">
-                            {row.summary.rsi.value === null ? EMPTY : formatPoints(row.summary.rsi.value)}
-                          </Td>
-                          <Td align="right">
-                            {row.summary.bollingerSummary.percentB === null
-                              ? EMPTY
-                              : formatPercent(row.summary.bollingerSummary.percentB, { digits: 0 })}
-                          </Td>
-                          <Td align="right">
-                            <Delta value={sma50?.priceVsMa ?? null} />
-                          </Td>
-                          <Td align="right">
-                            <Delta value={row.summary.drawdown.currentDrawdown} showSign={false} />
-                          </Td>
-                          <Td align="right" className="hidden lg:table-cell">
-                            <div className="flex justify-end">
-                              <Sparkline values={row.summary.bars.slice(-60).map((bar) => bar.adjClose)} width={72} height={22} />
-                            </div>
-                          </Td>
-                        </tr>
-                      );
-                    })}
-                </tbody>
-              </table>
-            </TableScroll>
-          </Panel>
-        </section>
+        <SignalBoard signals={signals} screen={screen} universe={SYMBOL_ROWS.length} />
 
         <Footer source={DATASET.source} downloadedAt={DATASET.downloadedAt} />
       </PageShell>

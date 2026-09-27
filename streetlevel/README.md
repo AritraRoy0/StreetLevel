@@ -40,6 +40,20 @@ example `npm run start -- -p 4000`.
 - `/signals` rule conditions currently met across the coverage list
 - `/performance` a backtest workspace, plus the cross-sectional comparison
 
+## Interface
+
+- `⌘K`, `Ctrl+K` or `/` opens search from any page: every covered symbol with
+  its latest price and move, plus the sections.
+- On an analytics page, `[` and `]` step to the previous and next symbol, and
+  the range and interval controls stay pinned under the navigation.
+- Table rows open the symbol they describe; column headers sort where a table
+  sorts.
+- Light and dark themes follow the operating system until one is chosen from
+  the navigation, and the choice is remembered per device. Every text colour
+  clears WCAG AA contrast in both.
+- The Performance tab is part of the link (`view=cross`), alongside the
+  strategy, so a shared URL opens on the same view.
+
 ## Data
 
 The bundled dataset is a daily Yahoo Finance download in

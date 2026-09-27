@@ -15,6 +15,7 @@
  */
 
 import { useCallback, useMemo, useRef, useState } from "react";
+import { ZoomOut } from "lucide-react";
 import {
   areaPath,
   bandWidth,
@@ -90,6 +91,8 @@ export interface IndicatorPane {
 const AXIS_WIDTH = 56;
 const BOTTOM_AXIS = 22;
 const PANE_GAP = 10;
+/** Wide enough for "Sep 30, 2026" in ten-pixel mono. */
+const DATE_LABEL_WIDTH = 84;
 
 /**
  * Beyond this many bars the series is thinned before drawing.
@@ -361,8 +364,10 @@ export function PriceChart({
         <button
           type="button"
           onClick={() => setZoom(null)}
-          className="absolute right-0 top-0 z-10 border border-hairline bg-surface px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted hover:text-ink"
+          style={{ right: AXIS_WIDTH + 4 }}
+          className="sl-fade-in absolute top-1 z-10 inline-flex h-7 items-center gap-1.5 border border-hairline-strong bg-surface px-2.5 text-[10px] font-semibold uppercase tracking-wider text-ink-soft transition-colors hover:bg-sunken hover:text-ink"
         >
+          <ZoomOut aria-hidden="true" className="h-3.5 w-3.5" />
           Reset zoom
         </button>
       )}
@@ -374,7 +379,7 @@ export function PriceChart({
         tabIndex={0}
         width={width}
         height={totalHeight}
-        className="chart-surface block cursor-crosshair outline-none"
+        className="chart-surface block cursor-crosshair focus-visible:outline-offset-4"
         onPointerMove={handleMove}
         onPointerDown={handleDown}
         onPointerUp={handleUp}
@@ -723,6 +728,30 @@ export function PriceChart({
             >
               {formatPrice(activeBar.close).replace("$", "")}
             </text>
+            {/* The session under the crosshair, labelled on the time axis. */}
+            {(() => {
+              const labelX = Math.min(Math.max(x(activeIndex), DATE_LABEL_WIDTH / 2), plotWidth - DATE_LABEL_WIDTH / 2);
+              return (
+                <>
+                  <rect
+                    x={labelX - DATE_LABEL_WIDTH / 2}
+                    y={totalHeight - BOTTOM_AXIS + 2}
+                    width={DATE_LABEL_WIDTH}
+                    height={BOTTOM_AXIS - 3}
+                    fill="var(--color-ink)"
+                  />
+                  <text
+                    x={labelX}
+                    y={totalHeight - 7}
+                    textAnchor="middle"
+                    className="fill-[var(--color-surface)] font-mono"
+                    style={{ fontSize: 10 }}
+                  >
+                    {formatDate(activeBar.timestamp)}
+                  </text>
+                </>
+              );
+            })()}
           </g>
         )}
       </svg>

@@ -8,7 +8,7 @@
  * to them, so the count is shown next to them.
  */
 
-import { Panel, PanelHeader, Td, Th, TableScroll, Delta, Badge } from "@/components/ui";
+import { Panel, PanelHeader, PanelNote, Td, Th, TableScroll, Delta, Badge } from "@/components/ui";
 import {
   EMPTY,
   formatDate,
@@ -71,9 +71,7 @@ export function PeriodPerformance({ summary, className }: { summary: AnalyticsSu
         title="Period returns"
         eyebrow="Distribution"
         actions={
-          <span className="text-[10px] uppercase tracking-wider text-faint">
-            Close to close, adjusted
-          </span>
+          <span className="text-[11px] text-muted">Close to close, adjusted</span>
         }
       />
       <TableScroll>
@@ -97,10 +95,10 @@ export function PeriodPerformance({ summary, className }: { summary: AnalyticsSu
           </tbody>
         </table>
       </TableScroll>
-      <p className="border-t border-hairline px-4 py-2.5 text-[11px] leading-relaxed text-muted">
+      <PanelNote>
         Weekly and monthly returns are measured from the previous period&apos;s final session, so no part of a
         move is lost at the boundary. The first bucket has no predecessor and is excluded.
-      </p>
+      </PanelNote>
     </Panel>
   );
 }
@@ -151,7 +149,7 @@ export function MovingAverageTable({ summary, className }: { summary: AnalyticsS
                     </span>
                   ) : (
                     <span className={average.above ? "text-pos" : "text-neg"}>
-                      {average.above ? "Above" : "Below"}
+                      {average.above ? "▲ Above" : "▼ Below"}
                     </span>
                   )}
                 </Td>
@@ -161,10 +159,10 @@ export function MovingAverageTable({ summary, className }: { summary: AnalyticsS
         </table>
       </TableScroll>
       {cross && (
-        <p className="border-t border-hairline px-4 py-2.5 text-[11px] text-muted">
+        <PanelNote>
           The 50-period average crossed {cross.kind === "golden" ? "above" : "below"} the 200-period average on{" "}
           {formatDate(cross.timestamp)}.
-        </p>
+        </PanelNote>
       )}
     </Panel>
   );

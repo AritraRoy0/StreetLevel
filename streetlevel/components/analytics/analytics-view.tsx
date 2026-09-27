@@ -8,32 +8,44 @@
  * that array inside `useMemo`, so switching from three months to five years is
  * instant and cannot produce a loading state, a request, or a chance to show
  * stale numbers next to fresh ones.
+ *
+ * The range and interval drive every section on the page, from the summary
+ * figures down to the benchmark comparison, so they live in a bar that sticks
+ * under the navigation. They used to sit above the summary and scroll away
+ * before the reader reached the chart they most affect.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { FlaskConical } from "lucide-react";
 import { PriceChart } from "@/components/charts/price-chart";
+import { MarkerDetail } from "@/components/charts/marker-detail";
 import type { ChartMarker, ChartType, IndicatorPane, Overlay } from "@/components/charts/price-chart";
 import { ComparisonPanel } from "@/components/analytics/comparison-panel";
 import { IndicatorSummary, RiskSummary } from "@/components/analytics/indicator-summary";
 import { MovingAverageTable, PeriodPerformance } from "@/components/analytics/performance-tables";
+import { SymbolSwitcher } from "@/components/analytics/symbol-switcher";
 import { NewsPanel } from "@/components/news-panel";
 import { DataQualityNotice } from "@/components/data-quality-notice";
 import {
   Badge,
   Callout,
   Delta,
+  EmptyState,
   Eyebrow,
   Field,
+  Kbd,
   Metric,
   MetricCell,
   MetricGrid,
+  Notice,
   Panel,
   PanelHeader,
+  PanelNote,
   Segmented,
   Select,
   ToggleChip,
+  buttonClass,
 } from "@/components/ui";
 import type { SegmentedOption } from "@/components/ui";
 import {
@@ -62,6 +74,8 @@ import type {
 } from "@/lib/analytics";
 import { INTERVAL_SUPPORT } from "@/lib/analytics-validation";
 import type { SymbolProfile } from "@/lib/market-data";
+import type { DirectoryEntry } from "@/lib/symbol-directory";
+import { cn } from "@/lib/utils";
 
 const OVERLAY_SPECS = [
   { key: "sma20", label: "SMA 20", color: "var(--chart-ma-1)", field: "sma20" },
@@ -74,15 +88,21 @@ const OVERLAY_SPECS = [
 type OverlayKey = (typeof OVERLAY_SPECS)[number]["key"];
 type PaneKey = "rsi" | "macd" | "drawdown";
 
-const INTERVAL_OPTIONS: SegmentedOption<Interval>[] = (
-  ["1d", "1w", "1mo", "1h", "5m"] as Interval[]
-).map((interval) => ({
+const INTERVALS: Interval[] = ["1d", "1w", "1mo", "1h", "5m"];
+
+const INTERVAL_OPTIONS: SegmentedOption<Interval>[] = INTERVALS.map((interval) => ({
   value: interval,
   label: INTERVAL_LABELS[interval],
   disabled: !INTERVAL_SUPPORT[interval].available,
   title: INTERVAL_SUPPORT[interval].available
     ? INTERVAL_LABELS[interval]
     : INTERVAL_SUPPORT[interval].reason,
+}));
+
+const RANGE_OPTIONS: SegmentedOption<RangeKey>[] = RANGE_KEYS.map((key) => ({
+  value: key,
+  label: RANGE_LABELS[key],
+  title: RANGE_DESCRIPTIONS[key],
 }));
 
 export function AnalyticsView({
@@ -95,7 +115,8 @@ export function AnalyticsView({
   benchmarkOptions,
   news,
   position,
-  peers,
+  directory,
+  backtestable,
 }: {
   symbol: string;
   profile: SymbolProfile;
@@ -106,9 +127,11 @@ export function AnalyticsView({
   benchmarkOptions: Array<{ symbol: string; label: string; description: string }>;
   news: Array<NewsArticle & { duplicateSources: string[] }>;
   position: PositionMetrics | null;
-  peers: Array<{ symbol: string; name: string }>;
+  /** Every covered symbol with its latest move, for the switcher. */
+  directory: DirectoryEntry[];
+  /** Whether the backtest workspace can run this symbol. The composite cannot. */
+  backtestable: boolean;
 }) {
-  const router = useRouter();
   const [range, setRange] = useState<RangeKey>("1Y");
   const [interval, setInterval] = useState<Interval>("1d");
   const [chartType, setChartType] = useState<ChartType>("area");
@@ -118,6 +141,23 @@ export function AnalyticsView({
   const [panes, setPanes] = useState<Set<PaneKey>>(new Set<PaneKey>(["rsi"]));
   const [showMarkers, setShowMarkers] = useState(true);
   const [activeMarker, setActiveMarker] = useState<ChartMarker | null>(null);
+
+  /**
+   * Whether the symbol header is on screen. When it scrolls away, the sticky
+   * control bar picks up the ticker and price so the reader never loses track
+   * of which name the numbers below belong to.
+   */
+  const headerRef = useRef<HTMLElement | null>(null);
+  const [headerVisible, setHeaderVisible] = useState(true);
+  useEffect(() => {
+    const element = headerRef.current;
+    if (!element || typeof IntersectionObserver === "undefined") return;
+    const observer = new IntersectionObserver(([entry]) => setHeaderVisible(entry.isIntersecting), {
+      rootMargin: "-104px 0px 0px 0px",
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const summary = useMemo(
     () => buildSummary(symbol, bars, { range, interval }),
@@ -208,59 +248,114 @@ export function AnalyticsView({
 
   const extremes = summary.extremes;
   const rangePosition = extremes.position;
+  const isComposite = profile.sector === "Composite index";
+  const priceText = isComposite && summary.lastPrice !== null ? summary.lastPrice.toFixed(2) : formatPrice(summary.lastPrice);
 
   return (
-    <div className="space-y-10">
+    <div className="space-y-8 sm:space-y-10">
       {/* ----------------------------------------------------------------- */}
       {/* Symbol header                                                      */}
       {/* ----------------------------------------------------------------- */}
-      <header className="border-b border-hairline-strong pb-6">
-        <div className="flex flex-wrap items-start justify-between gap-6">
-          <div className="min-w-0">
-            <div className="flex flex-wrap items-center gap-2.5">
-              <h1 className="font-mono text-[30px] font-semibold tracking-tight text-ink">{symbol}</h1>
-              <Badge>{profile.sector}</Badge>
-              {quality.stale && <Badge tone="warning">Delayed</Badge>}
-              {position && <Badge tone="accent">Held</Badge>}
+      <header ref={headerRef} className="mb-5 space-y-5 sm:mb-6">
+        <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5">
+          <div className="min-w-0 max-w-2xl">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <h1 className="font-mono text-[28px] font-semibold leading-none tracking-tight text-ink sm:text-[32px]">
+                {symbol}
+              </h1>
+              <span className="text-[15px] text-ink-soft">{profile.name}</span>
             </div>
-            <p className="mt-1.5 text-[14px] text-ink-soft">{profile.name}</p>
-            <p className="mt-1 max-w-xl text-[12px] leading-relaxed text-muted">{profile.description}</p>
+            <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
+              <Badge>{profile.sector}</Badge>
+              {position && (
+                <a href="#position" className="transition-opacity hover:opacity-80">
+                  <Badge tone="accent">Held · {formatPercent(position.weight, { digits: 1 })} of book</Badge>
+                </a>
+              )}
+            </div>
+            <p className="mt-3 text-[13px] leading-relaxed text-muted">{profile.description}</p>
           </div>
 
-          <div className="flex flex-col items-start gap-1 sm:items-end">
+          <div className="flex flex-col items-start gap-1.5 sm:items-end">
             <div className="flex items-baseline gap-3">
-              <span className="font-mono text-[34px] font-medium leading-none tracking-tight text-ink tabular-nums">
-                {formatPrice(summary.lastPrice)}
+              <span className="font-mono text-[32px] font-medium leading-none tracking-tight text-ink tabular-nums sm:text-[36px]">
+                {priceText}
               </span>
               <Delta value={summary.lastChangePercent} className="text-[15px]" />
             </div>
-            <p className="text-[11px] text-muted">
-              {formatPriceChange(summary.lastChange)} on the session · close {formatDate(summary.lastBarTimestamp)}
+            <p className="text-[12px] text-muted">
+              <Delta value={summary.lastChange}>{formatPriceChange(summary.lastChange)}</Delta> on the session · close{" "}
+              {formatDate(summary.lastBarTimestamp)}
             </p>
-            <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-faint">
-              <span>Market cap {formatCompactCurrency(profile.marketCap)}</span>
-              <span>P/E {Number.isFinite(profile.peRatio) ? profile.peRatio.toFixed(1) : EMPTY}</span>
-            </div>
+            {!isComposite && (
+              <p className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
+                <span>
+                  Market cap <span className="font-mono text-ink-soft">{formatCompactCurrency(profile.marketCap)}</span>
+                </span>
+                <span>
+                  P/E{" "}
+                  <span className="font-mono text-ink-soft">
+                    {Number.isFinite(profile.peRatio) ? profile.peRatio.toFixed(1) : EMPTY}
+                  </span>
+                </span>
+              </p>
+            )}
+            {backtestable && (
+              <Link
+                href={`/performance?symbol=${encodeURIComponent(symbol)}`}
+                className={buttonClass({ variant: "secondary", size: "xs", className: "mt-1.5" })}
+              >
+                <FlaskConical aria-hidden="true" className="h-3.5 w-3.5" />
+                Backtest {symbol}
+              </Link>
+            )}
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap items-center gap-2">
-          <Field label="Symbol">
-            <Select
-              ariaLabel="Selected symbol"
-              value={symbol}
-              onChange={(next) => router.push(`/analytics/${next}`)}
-              options={peers.map((peer) => ({ value: peer.symbol, label: `${peer.symbol} · ${peer.name}` }))}
-            />
-          </Field>
-          <Link
-            href="/portfolio"
-            className="border border-hairline px-3 py-2 text-[10px] font-semibold uppercase tracking-wider text-muted transition-colors hover:bg-sunken hover:text-ink"
-          >
-            Portfolio
-          </Link>
-        </div>
+        <SymbolSwitcher entries={directory} current={symbol} />
       </header>
+
+      {/* ----------------------------------------------------------------- */}
+      {/* Window controls, pinned under the navigation                       */}
+      {/* ----------------------------------------------------------------- */}
+      <div className="sticky top-[var(--nav-height)] z-30 -mx-4 border-y border-hairline bg-paper/90 px-4 backdrop-blur-md sm:-mx-6 sm:px-6 lg:-mx-10 lg:px-10">
+        <div className="flex min-h-12 items-center gap-3 py-2">
+          <div
+            aria-hidden={headerVisible}
+            className={cn(
+              "hidden min-w-0 items-baseline gap-2.5 transition-opacity duration-200 sm:flex",
+              headerVisible ? "pointer-events-none opacity-0" : "opacity-100",
+            )}
+          >
+            <span className="font-mono text-[14px] font-semibold text-ink">{symbol}</span>
+            <span className="font-mono text-[13px] tabular-nums text-ink-soft">{priceText}</span>
+            <Delta value={summary.lastChangePercent} className="text-[12px]" />
+          </div>
+          <div className="ml-auto flex min-w-0 items-center gap-2">
+            <Segmented size="sm" label="Date range" value={range} onChange={setRange} options={RANGE_OPTIONS} />
+            <Segmented
+              size="sm"
+              label="Bar interval"
+              value={interval}
+              onChange={setInterval}
+              options={INTERVAL_OPTIONS}
+              className="hidden md:inline-flex"
+            />
+            <Field label="Bars" className="h-7 shrink-0 gap-1 px-2 md:hidden" labelClassName="sr-only sm:not-sr-only">
+              <Select
+                ariaLabel="Bar interval"
+                value={interval}
+                onChange={setInterval}
+                options={INTERVALS.filter((item) => INTERVAL_SUPPORT[item].available).map((item) => ({
+                  value: item,
+                  label: INTERVAL_LABELS[item],
+                }))}
+                className="text-[11px]"
+              />
+            </Field>
+          </div>
+        </div>
+      </div>
 
       <DataQualityNotice quality={quality} />
 
@@ -274,29 +369,18 @@ export function AnalyticsView({
       {/* ----------------------------------------------------------------- */}
       {/* Summary metrics                                                    */}
       {/* ----------------------------------------------------------------- */}
-      <section>
-        <div className="mb-0 flex flex-wrap items-end justify-between gap-4 border-b border-hairline pb-4">
+      <section aria-labelledby="window-summary">
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-x-4 gap-y-1">
           <div>
             <Eyebrow className="mb-2">{RANGE_DESCRIPTIONS[range]}</Eyebrow>
-            <h2 className="text-lg font-semibold tracking-tight text-ink">Window summary</h2>
-            <p className="mt-1 text-[12px] text-muted">
-              {formatDate(summary.windowStart)} to {formatDate(summary.windowEnd)} · {summary.bars.length} bars ·{" "}
-              {INTERVAL_LABELS[interval].toLowerCase()}
-            </p>
+            <h2 id="window-summary" className="text-lg font-semibold tracking-tight text-ink">
+              Window summary
+            </h2>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Segmented
-              label="Date range"
-              value={range}
-              onChange={setRange}
-              options={RANGE_KEYS.map((key) => ({
-                value: key,
-                label: RANGE_LABELS[key],
-                title: RANGE_DESCRIPTIONS[key],
-              }))}
-            />
-            <Segmented label="Bar interval" value={interval} onChange={setInterval} options={INTERVAL_OPTIONS} />
-          </div>
+          <p className="font-mono text-[11px] tabular-nums text-muted">
+            {formatDate(summary.windowStart)} – {formatDate(summary.windowEnd)} · {summary.bars.length} bars ·{" "}
+            {INTERVAL_LABELS[interval].toLowerCase()}
+          </p>
         </div>
 
         <MetricGrid>
@@ -304,6 +388,7 @@ export function AnalyticsView({
             <Metric
               label="Period return"
               value={formatPercent(summary.periodReturn, { signed: true })}
+              tone={summary.periodReturn}
               hint={`${formatPriceChange(summary.periodChange)} in price terms`}
               size="lg"
             />
@@ -359,7 +444,7 @@ export function AnalyticsView({
             <Metric
               label="Range position"
               value={rangePosition === null ? EMPTY : formatPercent(rangePosition, { digits: 0 })}
-              hint="Where the last close sits between the low and the high"
+              hint={<RangeGauge position={rangePosition} />}
             />
           </MetricCell>
           <MetricCell>
@@ -376,16 +461,16 @@ export function AnalyticsView({
         </MetricGrid>
 
         {summary.warnings.length > 0 && (
-          <details className="mt-4 border border-hairline bg-surface">
-            <summary className="cursor-pointer px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-muted hover:text-ink">
-              {summary.warnings.length} note{summary.warnings.length === 1 ? "" : "s"} about this window
-            </summary>
-            <ul className="space-y-1 border-t border-hairline px-4 py-3 text-[11px] leading-relaxed text-muted">
+          <Notice
+            className="mt-3"
+            title={`${summary.warnings.length} note${summary.warnings.length === 1 ? "" : "s"} about this window`}
+          >
+            <ul className="space-y-1">
               {summary.warnings.map((warning) => (
                 <li key={warning}>{warning}</li>
               ))}
             </ul>
-          </details>
+          </Notice>
         )}
       </section>
 
@@ -411,9 +496,8 @@ export function AnalyticsView({
           }
         />
 
-        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b border-hairline px-4 py-2.5">
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Eyebrow className="mr-1">Overlays</Eyebrow>
+        <div className="flex flex-col gap-y-2 border-b border-hairline px-4 py-2.5 lg:flex-row lg:items-center lg:gap-x-6">
+          <ChipRow label="Overlays">
             {OVERLAY_SPECS.map((spec) => (
               <ToggleChip
                 key={spec.key}
@@ -427,10 +511,9 @@ export function AnalyticsView({
             <ToggleChip active={showBands} swatch="var(--color-faint)" onChange={setShowBands}>
               Bollinger
             </ToggleChip>
-          </div>
+          </ChipRow>
 
-          <div className="flex flex-wrap items-center gap-1.5">
-            <Eyebrow className="mr-1">Panes</Eyebrow>
+          <ChipRow label="Panes">
             <ToggleChip active={showVolume} onChange={setShowVolume}>
               Volume
             </ToggleChip>
@@ -449,10 +532,10 @@ export function AnalyticsView({
             <ToggleChip active={showMarkers} onChange={setShowMarkers}>
               News
             </ToggleChip>
-          </div>
+          </ChipRow>
         </div>
 
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           <PriceChart
             bars={summary.bars}
             chartType={chartType}
@@ -474,34 +557,22 @@ export function AnalyticsView({
           />
         </div>
 
-        <p className="border-t border-hairline px-4 py-2.5 text-[11px] text-muted">
-          Drag across the plot to zoom, double-click or press Escape to reset. Focus the chart and use the arrow keys
-          to step through sessions. Non-trading days are not plotted, so weekends and holidays leave no gap.
-        </p>
-
         {activeMarker && (
-          <div className="border-t border-hairline bg-sunken px-4 py-3">
-            <div className="flex items-start justify-between gap-4">
-              <div className="min-w-0">
-                <Eyebrow>{formatDate(activeMarker.timestamp)}</Eyebrow>
-                <ul className="mt-1.5 space-y-1">
-                  {(activeMarker.lines ?? [activeMarker.title]).map((line) => (
-                    <li key={line} className="text-[12px] leading-snug text-ink-soft">
-                      {line}
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <button
-                type="button"
-                onClick={() => setActiveMarker(null)}
-                className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted hover:text-ink"
-              >
-                Close
-              </button>
-            </div>
-          </div>
+          <MarkerDetail marker={activeMarker} onClose={() => setActiveMarker(null)} />
         )}
+
+        <PanelNote className="flex flex-wrap items-center gap-x-4 gap-y-1.5">
+          <span className="hidden items-center gap-1.5 sm:inline-flex">Drag across the plot to zoom</span>
+          <span className="hidden items-center gap-1.5 sm:inline-flex">
+            <Kbd>Esc</Kbd> or double-click to reset
+          </span>
+          <span className="hidden items-center gap-1.5 sm:inline-flex">
+            <Kbd>←</Kbd>
+            <Kbd>→</Kbd> step through sessions
+          </span>
+          <span className="sm:hidden">Touch and drag across the plot to read values.</span>
+          <span className="text-faint sm:ml-auto">Non-trading days are not plotted, so weekends leave no gap.</span>
+        </PanelNote>
       </Panel>
 
       {/* ----------------------------------------------------------------- */}
@@ -533,21 +604,35 @@ export function AnalyticsView({
       {/* ----------------------------------------------------------------- */}
       {/* Position and news                                                  */}
       {/* ----------------------------------------------------------------- */}
-      <section className="grid gap-6 lg:grid-cols-[1fr_1fr]">
-        {position ? (
-          <Panel className="min-w-0">
-            <PanelHeader title="Your position" eyebrow="From the sample transaction log" />
-            <div className="grid grid-cols-2 gap-y-5 p-4 sm:grid-cols-3">
+      <section className="grid gap-6 lg:grid-cols-2 lg:items-start">
+        <Panel id="position" className="min-w-0 scroll-mt-32">
+          <PanelHeader
+            title="Your position"
+            eyebrow="From the sample transaction log"
+            actions={
+              <Link href="/portfolio" className={buttonClass({ variant: "ghost", size: "xs" })}>
+                Portfolio
+              </Link>
+            }
+          />
+          {position ? (
+            <div className="grid grid-cols-2 gap-x-4 gap-y-5 p-4 sm:grid-cols-3">
               <Metric label="Shares" value={position.shares.toLocaleString("en-US")} size="sm" />
               <Metric label="Average cost" value={formatPrice(position.averageCost)} size="sm" />
               <Metric label="Market value" value={formatPrice(position.marketValue)} size="sm" />
               <Metric
                 label="Unrealized"
                 value={formatPriceChange(position.unrealizedPl)}
+                tone={position.unrealizedPl}
                 hint={formatPercent(position.unrealizedPlPercent, { signed: true })}
                 size="sm"
               />
-              <Metric label="Realized" value={formatPriceChange(position.realizedPl)} size="sm" />
+              <Metric
+                label="Realized"
+                value={formatPriceChange(position.realizedPl)}
+                tone={position.realizedPl}
+                size="sm"
+              />
               <Metric
                 label="Weight"
                 value={formatPercent(position.weight, { digits: 1 })}
@@ -555,19 +640,18 @@ export function AnalyticsView({
                 size="sm"
               />
             </div>
-          </Panel>
-        ) : (
-          <Panel className="min-w-0">
-            <PanelHeader title="Your position" eyebrow="From the sample transaction log" />
-            <p className="px-4 py-8 text-center text-[12px] text-muted">
-              No position in {symbol}. Open the{" "}
-              <Link href="/portfolio" className="underline underline-offset-2 hover:text-ink">
-                portfolio
-              </Link>{" "}
-              to see current holdings.
-            </p>
-          </Panel>
-        )}
+          ) : (
+            <EmptyState
+              title={`No position in ${symbol}`}
+              description="The sample transaction log never bought this name."
+              action={
+                <Link href="/portfolio" className={buttonClass({ variant: "secondary", size: "xs" })}>
+                  See current holdings
+                </Link>
+              }
+            />
+          )}
+        </Panel>
 
         <NewsPanel
           articles={news}
@@ -583,5 +667,35 @@ export function AnalyticsView({
         {formatPoints(summary.rsi.value)} uses Wilder&apos;s 14-period smoothing.
       </p>
     </div>
+  );
+}
+
+/** A labelled row of chips that scrolls sideways on a phone instead of wrapping. */
+function ChipRow({ label, children }: { label: string; children: React.ReactNode }) {
+  return (
+    <div className="flex min-w-0 items-center gap-2">
+      <Eyebrow className="w-16 shrink-0 lg:w-auto">{label}</Eyebrow>
+      <div className="scrollbar-none fade-end fade-end-sm-none -my-1 flex min-w-0 gap-1.5 overflow-x-auto py-1 sm:flex-wrap">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+/** Where the last close sits between the window's low and high, drawn as a rule. */
+function RangeGauge({ position }: { position: number | null }) {
+  if (position === null) return <>Where the last close sits between the low and the high</>;
+  const clamped = Math.min(1, Math.max(0, position));
+  return (
+    <span className="flex flex-col gap-1.5">
+      <span aria-hidden="true" className="relative block h-1 w-full max-w-[160px] bg-sunken">
+        <span className="absolute inset-y-0 left-0 bg-hairline-strong" style={{ width: `${clamped * 100}%` }} />
+        <span
+          className="absolute -top-1 h-3 w-0.5 -translate-x-1/2 bg-ink"
+          style={{ left: `${clamped * 100}%` }}
+        />
+      </span>
+      <span>Last close between the window low and high</span>
+    </span>
   );
 }

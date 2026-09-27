@@ -8,11 +8,16 @@
  * the server boundary as serialized JSON. It therefore takes the flattened
  * `CoverageRow` rather than a full analytics summary; the mapper that produces
  * it lives in `coverage-row.ts` so the server can call it.
+ *
+ * On a phone the table keeps the four columns a reader scans first, symbol,
+ * last, session and year, and fits the screen instead of scrolling sideways
+ * with everything but the ticker out of view.
  */
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { Sparkline } from "@/components/charts/sparkline";
+import { LinkRow } from "@/components/link-row";
 import { Delta, Td, Th, TableScroll } from "@/components/ui";
 import { EMPTY, formatPercent, formatPoints, formatPrice, formatVolume } from "@/lib/analytics";
 import type { CoverageRow } from "@/components/coverage-row";
@@ -29,6 +34,8 @@ const COLUMNS: Array<{ key: SortKey; label: string; align: "left" | "right"; hid
   { key: "rsi", label: "RSI", align: "right", hideBelow: "md" },
   { key: "volume", label: "Volume", align: "right", hideBelow: "sm" },
 ];
+
+const HIDE_CLASS = { sm: "hidden sm:table-cell", md: "hidden md:table-cell" } as const;
 
 export function CoverageTable({ rows, className }: { rows: CoverageRow[]; className?: string }) {
   const [sort, setSort] = useState<{ key: SortKey; direction: "asc" | "desc" }>({
@@ -64,32 +71,22 @@ export function CoverageTable({ rows, className }: { rows: CoverageRow[]; classN
 
   return (
     <TableScroll className={className}>
-      <table className="w-full min-w-[680px] border-collapse">
+      <table className="w-full border-collapse md:min-w-[680px]">
+        <caption className="sr-only">
+          Covered symbols, sorted by {COLUMNS.find((column) => column.key === sort.key)?.label}{" "}
+          {sort.direction === "asc" ? "ascending" : "descending"}. Column headers sort the table.
+        </caption>
         <thead>
           <tr>
             {COLUMNS.map((column) => (
               <Th
                 key={column.key}
                 align={column.align}
-                className={cn(
-                  column.hideBelow === "sm" && "hidden sm:table-cell",
-                  column.hideBelow === "md" && "hidden md:table-cell",
-                )}
+                sort={sort.key === column.key ? sort.direction : null}
+                onSort={() => toggle(column.key)}
+                className={cn(column.hideBelow && HIDE_CLASS[column.hideBelow])}
               >
-                <button
-                  type="button"
-                  onClick={() => toggle(column.key)}
-                  aria-label={`Sort by ${column.label}`}
-                  className="inline-flex items-center gap-1 uppercase tracking-[0.14em] hover:text-ink"
-                >
-                  {column.label}
-                  <span
-                    aria-hidden="true"
-                    className={cn("text-[8px]", sort.key === column.key ? "text-ink" : "text-transparent")}
-                  >
-                    {sort.direction === "asc" ? "▲" : "▼"}
-                  </span>
-                </button>
+                {column.label}
               </Th>
             ))}
             <Th align="right" className="hidden lg:table-cell">
@@ -99,10 +96,12 @@ export function CoverageTable({ rows, className }: { rows: CoverageRow[]; classN
         </thead>
         <tbody>
           {sorted.map((row) => (
-            <tr key={row.symbol} className="transition-colors hover:bg-sunken">
-              <Td>
-                <Link href={`/analytics/${row.symbol}`} className="block">
-                  <span className="font-mono text-[12px] font-semibold text-ink">{row.symbol}</span>
+            <LinkRow key={row.symbol} href={`/analytics/${row.symbol}`}>
+              <Td className="max-w-0 sm:max-w-none">
+                <Link href={`/analytics/${row.symbol}`} className="block min-w-0 outline-offset-4">
+                  <span className="font-mono text-[12px] font-semibold text-ink group-hover/row:underline group-hover/row:decoration-hairline-strong group-hover/row:underline-offset-4">
+                    {row.symbol}
+                  </span>
                   <span className="mt-0.5 block max-w-[180px] truncate text-[11px] text-muted">{row.name}</span>
                 </Link>
               </Td>
@@ -118,6 +117,7 @@ export function CoverageTable({ rows, className }: { rows: CoverageRow[]; classN
               </Td>
               <Td align="right" className="hidden md:table-cell">
                 <span
+                  title={row.rsiZone === "overbought" ? "Overbought" : row.rsiZone === "oversold" ? "Oversold" : undefined}
                   className={cn(
                     row.rsiZone === "overbought" && "text-neg",
                     row.rsiZone === "oversold" && "text-accent",
@@ -131,10 +131,10 @@ export function CoverageTable({ rows, className }: { rows: CoverageRow[]; classN
               </Td>
               <Td align="right" className="hidden lg:table-cell">
                 <div className="flex justify-end">
-                  <Sparkline values={row.spark} />
+                  <Sparkline values={row.spark} width={88} height={24} />
                 </div>
               </Td>
-            </tr>
+            </LinkRow>
           ))}
         </tbody>
       </table>

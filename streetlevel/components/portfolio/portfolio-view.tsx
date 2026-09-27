@@ -16,11 +16,12 @@ import { Sparkline } from "@/components/charts/sparkline";
 import { PriceChart } from "@/components/charts/price-chart";
 import {
   Badge,
-  Callout,
   Delta,
+  EmptyState,
   Metric,
   MetricCell,
   MetricGrid,
+  Notice,
   Panel,
   PanelHeader,
   Segmented,
@@ -28,6 +29,7 @@ import {
   Td,
   Th,
 } from "@/components/ui";
+import { LinkRow } from "@/components/link-row";
 import {
   EMPTY,
   formatCount,
@@ -42,6 +44,13 @@ import { PORTFOLIO_NOTE } from "@/lib/portfolio-data";
 import { cn } from "@/lib/utils";
 
 type Tab = "positions" | "allocation" | "correlation";
+
+/** Columns that appear only from a given width up. */
+const COL = {
+  sm: "hidden sm:table-cell",
+  md: "hidden md:table-cell",
+  lg: "hidden lg:table-cell",
+} as const;
 
 export function PortfolioView({
   portfolio,
@@ -77,7 +86,11 @@ export function PortfolioView({
   return (
     <div className="space-y-10">
       {portfolio.unpricedSymbols.length > 0 && (
-        <Callout tone="warning" title="Some holdings could not be valued">
+        <Notice
+          tone="warning"
+          title={`${portfolio.unpricedSymbols.join(", ")} could not be valued`}
+          summary="Excluded from value, weights and risk rather than counted as zero."
+        >
           <p>
             {portfolio.unpricedSymbols.join(", ")}{" "}
             {portfolio.unpricedSymbols.length === 1 ? "has" : "have"} no price history in the bundled dataset. Those
@@ -89,7 +102,7 @@ export function PortfolioView({
             {portfolio.unpricedSymbols.length === 1 ? "that holding" : "those holdings"}, which is why total value
             less net contributions falls short of realized plus unrealized profit by exactly that amount.
           </p>
-        </Callout>
+        </Notice>
       )}
 
       <section>
@@ -106,6 +119,7 @@ export function PortfolioView({
             <Metric
               label="Time-weighted return"
               value={formatPercent(portfolio.timeWeightedReturn, { signed: true })}
+              tone={portfolio.timeWeightedReturn}
               hint="Neutral to deposit and withdrawal timing"
               size="lg"
             />
@@ -114,6 +128,7 @@ export function PortfolioView({
             <Metric
               label="Unrealized"
               value={formatPriceChange(portfolio.unrealizedPl)}
+              tone={portfolio.unrealizedPl}
               hint={`Against ${formatPrice(portfolio.investedValue)} of cost basis`}
               size="lg"
             />
@@ -122,6 +137,7 @@ export function PortfolioView({
             <Metric
               label="Realized"
               value={formatPriceChange(portfolio.realizedPl)}
+              tone={portfolio.realizedPl}
               hint="Banked on closed lots and dividends"
               size="lg"
             />
@@ -159,12 +175,10 @@ export function PortfolioView({
           title="Account value"
           eyebrow={`${portfolio.series.length} sessions marked to market`}
           actions={
-            <span className="text-[10px] uppercase tracking-wider text-faint">
-              Holdings plus cash, including external flows
-            </span>
+            <span className="hidden text-[11px] text-muted sm:inline">Holdings plus cash, including external flows</span>
           }
         />
-        <div className="p-4">
+        <div className="p-3 sm:p-4">
           {valueBars.length > 1 ? (
             <PriceChart
               bars={valueBars}
@@ -175,9 +189,7 @@ export function PortfolioView({
               valueLabel="Account value"
             />
           ) : (
-            <p className="py-8 text-center text-[12px] text-muted">
-              Not enough valued sessions to chart the account.
-            </p>
+            <EmptyState title="Not enough history" description="Not enough valued sessions to chart the account." />
           )}
         </div>
       </Panel>
@@ -224,26 +236,31 @@ function PositionsTable({
 }) {
   return (
     <TableScroll>
-      <table className="w-full min-w-[860px] border-collapse">
+      {/*
+        On a phone the table keeps symbol, value, return and weight, and the
+        remaining columns return as the width allows, rather than a fixed
+        860-pixel table scrolling sideways with only the tickers in view.
+      */}
+      <table className="w-full border-collapse lg:min-w-[860px]">
         <thead>
           <tr>
             <Th>Symbol</Th>
-            <Th align="right">Shares</Th>
-            <Th align="right">Avg cost</Th>
-            <Th align="right">Last</Th>
+            <Th align="right" className={COL.md}>Shares</Th>
+            <Th align="right" className={COL.lg}>Avg cost</Th>
+            <Th align="right" className={COL.sm}>Last</Th>
             <Th align="right">Value</Th>
-            <Th align="right">Unrealized</Th>
+            <Th align="right" className={COL.md}>Unrealized</Th>
             <Th align="right">Return</Th>
-            <Th align="right">Contribution</Th>
+            <Th align="right" className={COL.lg}>Contribution</Th>
             <Th align="right">Weight</Th>
             <Th align="right" className="hidden xl:table-cell">
-              Trend
+              3M trend
             </Th>
           </tr>
         </thead>
         <tbody>
           {portfolio.positions.map((position) => (
-            <tr key={position.symbol} className={cn("hover:bg-sunken", !position.priced && "opacity-70")}>
+            <PositionRow key={position.symbol} symbol={position.symbol} priced={position.priced}>
               <Td>
                 {position.priced ? (
                   <Link href={`/analytics/${position.symbol}`} className="font-mono text-[12px] font-semibold text-ink">
@@ -256,11 +273,11 @@ function PositionsTable({
                   </span>
                 )}
               </Td>
-              <Td align="right">{formatCount(position.shares)}</Td>
-              <Td align="right">{formatPrice(position.averageCost)}</Td>
-              <Td align="right">{formatPrice(position.lastPrice)}</Td>
+              <Td align="right" className={COL.md}>{formatCount(position.shares)}</Td>
+              <Td align="right" className={COL.lg}>{formatPrice(position.averageCost)}</Td>
+              <Td align="right" className={COL.sm}>{formatPrice(position.lastPrice)}</Td>
               <Td align="right">{formatPrice(position.marketValue)}</Td>
-              <Td align="right">
+              <Td align="right" className={COL.md}>
                 <span
                   className={cn(
                     position.unrealizedPl === null
@@ -276,7 +293,7 @@ function PositionsTable({
               <Td align="right">
                 <Delta value={position.unrealizedPlPercent} />
               </Td>
-              <Td align="right">
+              <Td align="right" className={COL.lg}>
                 <Delta value={position.contribution} />
               </Td>
               <Td align="right">{formatPercent(position.weight, { digits: 1 })}</Td>
@@ -285,19 +302,19 @@ function PositionsTable({
                   <Sparkline values={sparklines[position.symbol] ?? []} width={72} height={22} />
                 </div>
               </Td>
-            </tr>
+            </PositionRow>
           ))}
           <tr className="bg-sunken">
             <Td>
               <span className="text-[11px] font-semibold uppercase tracking-wider text-muted">Cash</span>
             </Td>
-            <Td align="right">{EMPTY}</Td>
-            <Td align="right">{EMPTY}</Td>
-            <Td align="right">{EMPTY}</Td>
+            <Td align="right" className={COL.md}>{EMPTY}</Td>
+            <Td align="right" className={COL.lg}>{EMPTY}</Td>
+            <Td align="right" className={COL.sm}>{EMPTY}</Td>
             <Td align="right">{formatPrice(portfolio.cash)}</Td>
+            <Td align="right" className={COL.md}>{EMPTY}</Td>
             <Td align="right">{EMPTY}</Td>
-            <Td align="right">{EMPTY}</Td>
-            <Td align="right">{EMPTY}</Td>
+            <Td align="right" className={COL.lg}>{EMPTY}</Td>
             <Td align="right">{formatPercent(portfolio.cashWeight, { digits: 1 })}</Td>
             <Td align="right" className="hidden xl:table-cell" />
           </tr>
@@ -305,6 +322,12 @@ function PositionsTable({
       </table>
     </TableScroll>
   );
+}
+
+/** A priced holding opens its analytics; an unpriced one has nowhere to go. */
+function PositionRow({ symbol, priced, children }: { symbol: string; priced: boolean; children: React.ReactNode }) {
+  if (priced) return <LinkRow href={`/analytics/${symbol}`}>{children}</LinkRow>;
+  return <tr className="text-muted">{children}</tr>;
 }
 
 function AllocationView({ portfolio }: { portfolio: PortfolioAnalytics }) {
@@ -362,7 +385,7 @@ function CorrelationMatrix({ portfolio }: { portfolio: PortfolioAnalytics }) {
   const { symbols, matrix } = portfolio.correlation;
 
   if (symbols.length < 2) {
-    return <p className="px-4 py-8 text-center text-[12px] text-muted">At least two priced holdings are needed.</p>;
+    return <EmptyState title="Not enough holdings" description="At least two priced holdings are needed to estimate correlation." />;
   }
 
   return (
@@ -387,13 +410,20 @@ function CorrelationMatrix({ portfolio }: { portfolio: PortfolioAnalytics }) {
                 </Td>
                 {symbols.map((columnSymbol, columnIndex) => {
                   const value = matrix[rowIndex][columnIndex];
-                  // Shade by magnitude so clusters of co-movement are visible at a glance.
-                  const intensity = value === null ? 0 : Math.abs(value) * 0.22;
+                  // Shade by magnitude so clusters of co-movement are visible at a
+                  // glance. Mixed from the ink token so it inverts with the theme.
+                  const intensity = value === null ? 0 : Math.abs(value) * 26;
                   return (
                     <Td
                       key={columnSymbol}
                       align="right"
-                      style={{ background: value === null ? undefined : `rgba(14,16,15,${intensity.toFixed(3)})` }}
+                      className={cn(rowIndex === columnIndex && "text-faint")}
+                      style={{
+                        background:
+                          value === null
+                            ? undefined
+                            : `color-mix(in srgb, var(--color-ink) ${intensity.toFixed(1)}%, transparent)`,
+                      }}
                     >
                       {value === null ? EMPTY : value.toFixed(2)}
                     </Td>

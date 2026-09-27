@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node shot.js after 1440 home)",
+      "Bash(SCHEME=dark node shot.js after 1440 home)",
+      "Bash(SLICE=1400 node shot.js after-m 390 home)"
+    ]
+  }
+}

@@ -1,4 +1,4 @@
-import { Footer, PageHeader, PageShell, StatusStrip, TopNav } from "@/components/shell";
+import { Footer, PageHeader, PageShell, StatusStrip } from "@/components/shell";
 import { PortfolioView } from "@/components/portfolio/portfolio-view";
 import { Badge } from "@/components/ui";
 import { DATA_QUALITY, DATASET, SYMBOLS, sparklineFor } from "@/lib/market-data";
@@ -17,7 +17,6 @@ export default function PortfolioPage() {
 
   return (
     <>
-      <TopNav />
       <StatusStrip
         asOf={quality?.lastBar ?? null}
         source={DATASET.source}

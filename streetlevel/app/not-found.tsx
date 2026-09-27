@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { Footer, PageShell, TopNav } from "@/components/shell";
-import { Callout, Eyebrow } from "@/components/ui";
+import { Footer, PageShell } from "@/components/shell";
+import { Callout, Eyebrow, Kbd, buttonClass } from "@/components/ui";
 import { COMPOSITE_SYMBOL, DATASET, SYMBOLS } from "@/lib/market-data";
 
 export const metadata = { title: "Not found" };
@@ -20,7 +20,6 @@ export const metadata = { title: "Not found" };
 export default function NotFound() {
   return (
     <>
-      <TopNav />
       <PageShell>
         <div className="mx-auto max-w-xl py-16">
           <Eyebrow className="mb-3">404</Eyebrow>
@@ -39,7 +38,7 @@ export default function NotFound() {
                 <Link
                   key={symbol}
                   href={`/analytics/${symbol}`}
-                  className="border border-hairline px-2 py-1 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:bg-sunken hover:text-ink"
+                  className="border border-hairline px-2 py-1 font-mono text-[11px] font-semibold text-ink-soft transition-colors hover:border-hairline-strong hover:bg-sunken hover:text-ink"
                 >
                   {symbol}
                 </Link>
@@ -47,19 +46,16 @@ export default function NotFound() {
             </div>
           </Callout>
 
-          <div className="mt-6 flex flex-wrap gap-2">
-            <Link
-              href="/"
-              className="bg-ink px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-surface transition-colors hover:bg-ink-soft"
-            >
+          <div className="mt-6 flex flex-wrap items-center gap-2">
+            <Link href="/" className={buttonClass({ variant: "primary", size: "md" })}>
               Overview
             </Link>
-            <Link
-              href="/portfolio"
-              className="border border-hairline-strong px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wider text-ink transition-colors hover:bg-sunken"
-            >
+            <Link href="/portfolio" className={buttonClass({ variant: "secondary", size: "md" })}>
               Portfolio
             </Link>
+            <span className="ml-2 hidden items-center gap-1.5 text-[12px] text-muted sm:inline-flex">
+              or press <Kbd>/</Kbd> to search
+            </span>
           </div>
         </div>
         <Footer source={DATASET.source} downloadedAt={DATASET.downloadedAt} />

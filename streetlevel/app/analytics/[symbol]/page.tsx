@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AnalyticsView } from "@/components/analytics/analytics-view";
-import { Footer, PageShell, StatusStrip, TopNav } from "@/components/shell";
+import { Footer, PageShell, StatusStrip } from "@/components/shell";
 import {
   BENCHMARKS,
   COMPOSITE_SYMBOL,
@@ -12,6 +12,7 @@ import {
   SYMBOLS,
 } from "@/lib/market-data";
 import { NEWS_FEED } from "@/lib/news-data";
+import { SYMBOL_DIRECTORY } from "@/lib/symbol-directory";
 import { getPosition } from "@/lib/portfolio-service";
 import { newsForSymbol } from "@/lib/analytics";
 import type { DataQuality } from "@/lib/analytics";
@@ -76,7 +77,6 @@ export default async function SymbolAnalyticsPage({ params }: { params: Promise<
 
   return (
     <>
-      <TopNav />
       <StatusStrip
         asOf={quality.lastBar}
         source={DATASET.source}
@@ -94,10 +94,8 @@ export default async function SymbolAnalyticsPage({ params }: { params: Promise<
           benchmarkOptions={BENCHMARKS}
           news={news}
           position={position}
-          peers={[...SYMBOLS, COMPOSITE_SYMBOL].map((item) => ({
-            symbol: item,
-            name: getProfile(item).name,
-          }))}
+          directory={SYMBOL_DIRECTORY}
+          backtestable={SYMBOLS.includes(symbol)}
         />
         <Footer source={DATASET.source} downloadedAt={DATASET.downloadedAt} />
       </PageShell>

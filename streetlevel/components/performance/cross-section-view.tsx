@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { Delta, Metric, MetricCell, MetricGrid, Panel, PanelHeader, TableScroll, Td, Th } from "@/components/ui";
+import { Delta, Metric, MetricCell, MetricGrid, Panel, PanelHeader, PanelNote, TableScroll, Td, Th } from "@/components/ui";
+import { LinkRow } from "@/components/link-row";
 import { ComparisonChart } from "@/components/charts/comparison-chart";
 import {
   COMPOSITE_BARS,
@@ -52,18 +53,22 @@ export function CrossSectionView() {
     };
   }).sort((a, b) => (b.periodReturn ?? 0) - (a.periodReturn ?? 0));
 
+  // Sector bars share one scale, so their lengths compare across rows.
+  const sectorScale = Math.max(0.0001, ...sectors.map((sector) => Math.abs(sector.periodReturn ?? 0)));
+
   const matrix = correlationMatrix(SYMBOLS.map((symbol) => ({ symbol, bars: PRICE_BOOK[symbol] })));
   const best = relative[0];
   const worst = relative[relative.length - 1];
 
   return (
     <>
-        <section className="mb-10">
+        <section className="mb-8 sm:mb-10">
           <MetricGrid>
             <MetricCell>
               <Metric
                 label="Composite return"
                 value={formatPercent(composite.periodReturn, { signed: true })}
+                tone={composite.periodReturn}
                 hint="Equal-weight, trailing year"
                 size="lg"
               />
@@ -80,7 +85,8 @@ export function CrossSectionView() {
               <Metric
                 label="Widest outperformance"
                 value={formatPercent(best?.comparison.excessReturn, { signed: true })}
-                hint={best?.symbol}
+                tone={best?.comparison.excessReturn}
+                hint={best ? `${best.symbol} over the composite` : undefined}
                 size="lg"
               />
             </MetricCell>
@@ -95,12 +101,12 @@ export function CrossSectionView() {
           </MetricGrid>
         </section>
 
-        <Panel className="mb-10">
+        <Panel className="mb-8 sm:mb-10">
           <PanelHeader
             title={`${best?.symbol ?? EMPTY} against the composite`}
             eyebrow="Widest spread in the coverage list"
           />
-          <div className="p-4">
+          <div className="p-3 sm:p-4">
             {best && (
               <ComparisonChart
                 points={best.comparison.normalized}
@@ -110,13 +116,13 @@ export function CrossSectionView() {
               />
             )}
           </div>
-          <p className="border-t border-hairline px-4 py-2.5 text-[11px] text-muted">
+          <PanelNote>
             {best?.symbol} leads the basket by {formatPercent(best?.comparison.excessReturn)} over the year;{" "}
             {worst?.symbol} trails it by {formatPercent(Math.abs(worst?.comparison.excessReturn ?? 0))}.
-          </p>
+          </PanelNote>
         </Panel>
 
-        <section className="grid gap-10 xl:grid-cols-[1.4fr_1fr]">
+        <section className="grid gap-8 xl:grid-cols-[1.4fr_1fr] xl:items-start">
           <Panel className="min-w-0">
             <PanelHeader title="Relative strength" eyebrow="Ranked by excess return" />
             <TableScroll>
@@ -136,7 +142,7 @@ export function CrossSectionView() {
                 </thead>
                 <tbody>
                   {relative.map((row) => (
-                    <tr key={row.symbol} className="hover:bg-sunken">
+                    <LinkRow key={row.symbol} href={`/analytics/${row.symbol}`}>
                       <Td>
                         <Link href={`/analytics/${row.symbol}`} className="font-mono text-[12px] font-semibold text-ink">
                           {row.symbol}
@@ -155,19 +161,19 @@ export function CrossSectionView() {
                       <Td align="right" className="hidden lg:table-cell">
                         {formatRatio(row.comparison.informationRatio)}
                       </Td>
-                    </tr>
+                    </LinkRow>
                   ))}
                 </tbody>
               </table>
             </TableScroll>
-            <p className="border-t border-hairline px-4 py-2.5 text-[11px] leading-relaxed text-muted">
+            <PanelNote>
               Beta is the slope of each name&apos;s daily returns regressed on the composite&apos;s. Tracking error is
               the annualized deviation of the return difference, and the information ratio divides annualized excess
               return by it.
-            </p>
+            </PanelNote>
           </Panel>
 
-          <div className="min-w-0 space-y-10">
+          <div className="min-w-0 space-y-8">
             <Panel>
               <PanelHeader title="By sector" eyebrow="Equal-weight within each group" />
               <div className="divide-y divide-hairline">
@@ -177,10 +183,10 @@ export function CrossSectionView() {
                       <span className="text-[12px] font-semibold text-ink">{sector.sector}</span>
                       <Delta value={sector.periodReturn} className="text-[12px]" />
                     </div>
-                    <div className="mt-2 h-1 bg-sunken">
+                    <div aria-hidden="true" className="mt-2 h-1 bg-sunken">
                       <div
-                        className="h-full bg-ink"
-                        style={{ width: `${Math.min(100, Math.abs((sector.periodReturn ?? 0) * 100))}%` }}
+                        className={(sector.periodReturn ?? 0) >= 0 ? "h-full bg-pos" : "h-full bg-neg"}
+                        style={{ width: `${(Math.abs(sector.periodReturn ?? 0) / sectorScale) * 100}%` }}
                       />
                     </div>
                     <p className="mt-2 text-[11px] text-muted">

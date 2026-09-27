@@ -3,11 +3,17 @@
  *
  * It renders only when something is actually wrong with the series: bars
  * rejected in validation, duplicate timestamps, missing weekday sessions, or a
- * feed that has stopped updating. A banner that is always on stops being read,
- * so silence here is the normal state and means the data checked out.
+ * feed that has stopped updating. Silence here is the normal state and means
+ * the data checked out.
+ *
+ * The headline and the most important warning stay visible; the full list
+ * folds away. With a fixed snapshot the staleness warning is permanent, and a
+ * five-line block above every page's content is the kind of banner that stops
+ * being read. One line that states the condition, with the particulars a click
+ * away, keeps it honest without making it furniture.
  */
 
-import { Callout } from "@/components/ui";
+import { Notice } from "@/components/ui";
 import { formatDate } from "@/lib/analytics";
 import type { DataQuality } from "@/lib/analytics";
 
@@ -28,8 +34,13 @@ export function DataQualityNotice({
         ? "Market data is behind"
         : "Data quality notes";
 
+  // Lead with the staleness line when there is one, since it is the one that
+  // changes how every figure on the page should be read.
+  const headline =
+    quality.warnings.find((warning) => /old|behind|stale/i.test(warning)) ?? quality.warnings[0];
+
   return (
-    <Callout tone={tone} title={title} className={className}>
+    <Notice tone={tone} title={title} summary={headline} className={className}>
       <ul className="space-y-0.5">
         {quality.warnings.map((warning) => (
           <li key={warning}>{warning}</li>
@@ -41,6 +52,6 @@ export function DataQualityNotice({
           {quality.rejected > 0 ? ` · ${quality.rejected} rejected` : ""}
         </p>
       )}
-    </Callout>
+    </Notice>
   );
 }
