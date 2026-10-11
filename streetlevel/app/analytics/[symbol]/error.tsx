@@ -2,7 +2,8 @@
 
 import { useEffect } from "react";
 import Link from "next/link";
-import { Callout } from "@/components/ui";
+import { RotateCcw } from "lucide-react";
+import { Button, Callout, buttonClass } from "@/components/ui";
 
 /**
  * Error boundary for the analytics route.
@@ -11,6 +12,9 @@ import { Callout } from "@/components/ui";
  * go back to a page that is known to be intact. The digest is shown because it
  * is the only handle a user has when reporting the failure; the underlying
  * message is not, since it can carry internals.
+ *
+ * The navigation comes from the root layout, so the reader can also leave for
+ * any other section or search for a different symbol from here.
  */
 export default function AnalyticsError({
   error,
@@ -24,27 +28,19 @@ export default function AnalyticsError({
   }, [error]);
 
   return (
-    <main className="mx-auto w-full max-w-2xl px-4 py-24">
+    <main id="content" tabIndex={-1} className="mx-auto w-full max-w-2xl px-4 py-16 outline-none sm:py-24">
       <Callout tone="negative" title="This symbol's analytics could not be built">
         <p>
           The price history failed to load or did not pass validation, so no figures are shown rather than figures
           that might be wrong.
         </p>
-        {error.digest && (
-          <p className="mt-2 font-mono text-[11px] text-faint">Reference {error.digest}</p>
-        )}
+        {error.digest && <p className="mt-2 font-mono text-[11px] text-faint">Reference {error.digest}</p>}
         <div className="mt-4 flex flex-wrap gap-2">
-          <button
-            type="button"
-            onClick={reset}
-            className="bg-ink px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-surface hover:bg-ink-soft"
-          >
+          <Button variant="primary" onClick={reset}>
+            <RotateCcw aria-hidden="true" className="h-3.5 w-3.5" />
             Try again
-          </button>
-          <Link
-            href="/"
-            className="border border-hairline-strong px-3 py-1.5 text-[10px] font-semibold uppercase tracking-wider text-ink hover:bg-sunken"
-          >
+          </Button>
+          <Link href="/" className={buttonClass()}>
             Back to overview
           </Link>
         </div>

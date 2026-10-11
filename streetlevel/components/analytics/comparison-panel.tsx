@@ -12,13 +12,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ComparisonChart } from "@/components/charts/comparison-chart";
 import {
+  Button,
   Callout,
   Delta,
-  Eyebrow,
   Field,
   Metric,
   Panel,
   PanelHeader,
+  PanelNote,
   Select,
   Skeleton,
 } from "@/components/ui";
@@ -154,8 +155,8 @@ export function ComparisonPanel({
       />
 
       {status === "loading" && (
-        <div className="space-y-3 p-4">
-          <Skeleton className="h-[240px] w-full" />
+        <div className="space-y-3 p-4" aria-busy="true" aria-label="Loading benchmark">
+          <Skeleton className="h-[262px] w-full" />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             {[0, 1, 2, 3].map((index) => (
               <div key={index}>
@@ -171,8 +172,9 @@ export function ComparisonPanel({
         <div className="p-4">
           <Callout tone="negative" title="Could not load that benchmark">
             <p>{errorMessage}</p>
-            <button
-              type="button"
+            <Button
+              size="xs"
+              className="mt-2"
               onClick={() => {
                 setFetched((current) => {
                   const next = { ...current };
@@ -181,17 +183,16 @@ export function ComparisonPanel({
                 });
                 void load(selected);
               }}
-              className="mt-2 border border-hairline-strong px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-ink hover:bg-sunken"
             >
               Try again
-            </button>
+            </Button>
           </Callout>
         </div>
       )}
 
       {status === "idle" && comparison && (
         <>
-          <div className="p-4">
+          <div className="p-3 sm:p-4">
             <ComparisonChart
               points={comparison.normalized}
               baseLabel={symbol}
@@ -199,10 +200,11 @@ export function ComparisonPanel({
             />
           </div>
 
-          <div className="grid grid-cols-2 gap-y-5 border-t border-hairline px-4 py-4 sm:grid-cols-4">
+          <div className="grid grid-cols-2 gap-x-4 gap-y-5 border-t border-hairline px-4 py-4 sm:grid-cols-4">
             <Metric
               label="Excess return"
               value={formatPercent(comparison.excessReturn, { signed: true })}
+              tone={comparison.excessReturn}
               hint={
                 comparison.outperforming === null
                   ? "Not available"
@@ -241,7 +243,7 @@ export function ComparisonPanel({
             <ComparisonLine label={`${selected} max drawdown`} value={comparison.benchmarkMaxDrawdown} signed={false} />
           </div>
 
-          <div className="border-t border-hairline px-4 py-2.5 text-[11px] leading-relaxed text-muted">
+          <PanelNote>
             <p>
               Aligned {formatDate(comparison.windowStart)} to {formatDate(comparison.windowEnd)}.
             </p>
@@ -252,7 +254,7 @@ export function ComparisonPanel({
                 ))}
               </ul>
             )}
-          </div>
+          </PanelNote>
         </>
       )}
 
@@ -274,7 +276,7 @@ function ComparisonLine({
 }) {
   return (
     <div className="flex items-baseline justify-between gap-3 border-b border-hairline pb-1.5 last:border-b-0">
-      <Eyebrow className="normal-case tracking-normal text-muted">{label}</Eyebrow>
+      <span className="text-[11px] text-muted">{label}</span>
       {signed ? (
         <Delta value={value} className="text-[12px]" />
       ) : (

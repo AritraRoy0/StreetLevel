@@ -1,8 +1,8 @@
 # StreetLevel
 
 A market research workspace built with Next.js. Price analytics, technical
-indicators, benchmark comparison and portfolio attribution, all computed from
-one validated bar series.
+indicators, benchmark comparison and backtesting, all computed from one
+validated bar series.
 
 ```bash
 npm run dev        # development server on http://localhost:3001
@@ -36,9 +36,21 @@ example `npm run start -- -p 4000`.
 
 - `/` coverage, market aggregates and the news wire
 - `/analytics/[symbol]` the single-symbol workspace
-- `/portfolio` position and portfolio attribution
-- `/signals` rule conditions currently met across the coverage list
 - `/performance` a backtest workspace, plus the cross-sectional comparison
+
+## Interface
+
+- `⌘K`, `Ctrl+K` or `/` opens search from any page: every covered symbol with
+  its latest price and move, plus the sections.
+- On an analytics page, `[` and `]` step to the previous and next symbol, and
+  the range and interval controls stay pinned under the navigation.
+- Table rows open the symbol they describe; column headers sort where a table
+  sorts.
+- Light and dark themes follow the operating system until one is chosen from
+  the navigation, and the choice is remembered per device. Every text colour
+  clears WCAG AA contrast in both.
+- The Performance tab is part of the link (`view=cross`), alongside the
+  strategy, so a shared URL opens on the same view.
 
 ## Data
 
@@ -60,10 +72,9 @@ No index series ships with the data, so the house benchmark `SL10` is an
 equal-weight composite of the ten covered names, rebased to 100 at inception. It
 is labelled as that, not as a proxy for a published index.
 
-The news feed and the portfolio transaction log are illustrative fixtures
-written for this demonstration, labelled as such in the UI. Swap
-`lib/news-data.ts` and `lib/portfolio-data.ts` for real sources; nothing else
-needs to change.
+The news feed is an illustrative fixture written for this demonstration,
+labelled as such in the UI. Swap `lib/news-data.ts` for a real source; nothing
+else needs to change.
 
 ## Backtesting
 

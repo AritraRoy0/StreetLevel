@@ -15,7 +15,9 @@
 
 import { useCallback, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check, Link2 } from "lucide-react";
 import { PriceChart } from "@/components/charts/price-chart";
+import { MarkerDetail } from "@/components/charts/marker-detail";
 import type { ChartMarker, IndicatorPane, Overlay } from "@/components/charts/price-chart";
 import { StrategyPanel } from "@/components/backtest/strategy-panel";
 import {
@@ -27,15 +29,16 @@ import {
 } from "@/components/backtest/result-panels";
 import { decodeState, encodeState } from "@/components/backtest/url-state";
 import {
-  Badge,
+  Button,
   Callout,
   Delta,
-  Eyebrow,
   Metric,
   MetricCell,
   MetricGrid,
+  Notice,
   Panel,
   PanelHeader,
+  PanelNote,
   Segmented,
   TableScroll,
   Td,
@@ -307,6 +310,28 @@ export function BacktestWorkspace({
     );
   }, [symbol, selectedSymbols, multiSymbol, range, spec, allocation, maxPositions, initial.volatilityTarget]);
 
+  /**
+   * Restores the specification, window and allocation to their defaults. The
+   * symbol and universe stay as they are: they are what the reader is
+   * studying, not settings they were experimenting with.
+   */
+  const resetAll = useCallback(() => {
+    const defaults = decodeState(new URLSearchParams(), { symbol, symbols });
+    setSpec(defaults.spec);
+    setRange(defaults.range);
+    setAllocation(defaults.allocation);
+    setMaxPositions(defaults.maxPositions);
+    setShowSweep(false);
+    setShowWalkForward(false);
+    setActiveMarker(null);
+    syncUrl({
+      spec: defaults.spec,
+      range: defaults.range,
+      allocation: defaults.allocation,
+      maxPositions: defaults.maxPositions,
+    });
+  }, [symbol, symbols, syncUrl]);
+
   const toggleSymbol = useCallback(
     (item: string) => {
       setSelectedSymbols((current) => {
@@ -324,28 +349,30 @@ export function BacktestWorkspace({
       {/* ----------------------------------------------------------------- */}
       {/* Standing disclosure                                               */}
       {/* ----------------------------------------------------------------- */}
-      <Callout tone="warning" title="This is a simulator, not evidence">
+      <Notice
+        tone="warning"
+        title="This is a simulator, not evidence"
+        summary="One year of ten surviving names. Read results as a demonstration of method."
+      >
         <p>{datasetNote}</p>
         <p className="mt-1.5">
           Ten large-capitalisation survivors over a single year, with no delisted names, carries severe survivorship
           bias, and one non-overlapping year is a single observation of any annual statistic. A parameter sweep over
           it will always find a winner. Read what follows as a demonstration of method, not as a finding about a rule.
         </p>
-        <details className="mt-2">
-          <summary className="cursor-pointer font-semibold text-ink">Fill assumptions</summary>
-          <ul className="mt-1.5 space-y-0.5">
-            {INTRABAR_POLICY.map((line) => (
-              <li key={line}>{line}</li>
-            ))}
-          </ul>
-        </details>
-      </Callout>
+        <p className="mt-2 font-semibold text-ink">Fill assumptions</p>
+        <ul className="mt-1 space-y-0.5">
+          {INTRABAR_POLICY.map((line) => (
+            <li key={line}>{line}</li>
+          ))}
+        </ul>
+      </Notice>
 
       {/* ----------------------------------------------------------------- */}
       {/* Controls                                                          */}
       {/* ----------------------------------------------------------------- */}
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-hairline pb-4">
-        <div className="flex flex-wrap items-center gap-2">
+        <div className="flex min-w-0 max-w-full flex-wrap items-center gap-2">
           <Segmented
             label="Window"
             value={range}
@@ -388,23 +415,28 @@ export function BacktestWorkspace({
             </>
           )}
         </div>
-        <div className="flex flex-wrap items-center gap-2">
-          <ToggleChip active={showTrades} onChange={setShowTrades}>
-            Trade markers
-          </ToggleChip>
-          <ToggleChip active={showSweep} onChange={setShowSweep}>
-            Parameter sweep
-          </ToggleChip>
-          <ToggleChip active={showWalkForward} onChange={setShowWalkForward}>
-            Walk forward
-          </ToggleChip>
-          <button
-            type="button"
-            onClick={copyLink}
-            className="border border-hairline px-2.5 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted transition-colors hover:bg-sunken hover:text-ink"
-          >
+        <div className="flex flex-wrap items-center gap-1.5">
+          {!multiSymbol && (
+            <>
+              <ToggleChip active={showTrades} onChange={setShowTrades}>
+                Trade markers
+              </ToggleChip>
+              <ToggleChip active={showSweep} onChange={setShowSweep}>
+                Parameter sweep
+              </ToggleChip>
+              <ToggleChip active={showWalkForward} onChange={setShowWalkForward}>
+                Walk forward
+              </ToggleChip>
+            </>
+          )}
+          <Button size="xs" onClick={copyLink} aria-live="polite" className="min-w-[112px]">
+            {linkCopied ? (
+              <Check aria-hidden="true" className="h-3.5 w-3.5 text-pos" />
+            ) : (
+              <Link2 aria-hidden="true" className="h-3.5 w-3.5" />
+            )}
             {linkCopied ? "Link copied" : "Copy link"}
-          </button>
+          </Button>
         </div>
       </div>
 
@@ -438,8 +470,14 @@ export function BacktestWorkspace({
         </Callout>
       )}
 
-      <div className="grid gap-8 xl:grid-cols-[340px_1fr]">
+      {/*
+        The strategy stays pinned beside its results on wide screens, so a
+        parameter can be changed while the equity curve it moves is in view.
+        It scrolls within itself when it is taller than the window.
+      */}
+      <div className="grid gap-8 xl:grid-cols-[340px_minmax(0,1fr)] xl:items-start">
         <StrategyPanel
+          className="xl:sticky xl:top-[calc(var(--nav-height)+1rem)] xl:max-h-[calc(100dvh-var(--nav-height)-2rem)] xl:overflow-y-auto"
           spec={spec}
           symbols={symbols}
           symbol={symbol}
@@ -455,6 +493,7 @@ export function BacktestWorkspace({
             syncUrl({ multiSymbol: next });
           }}
           onToggleSymbol={toggleSymbol}
+          onReset={resetAll}
         />
 
         <div className="min-w-0 space-y-8">
@@ -464,14 +503,17 @@ export function BacktestWorkspace({
               <HeadlineStatistics result={result} />
 
               <Panel>
+                {/*
+                  No "cached" badge here. The run cache lives at module scope,
+                  so the server, warm from earlier requests, rendered the badge
+                  while the fresh client did not, which broke hydration. It also
+                  told the reader nothing about the result.
+                */}
                 <PanelHeader
                   title="Equity curve"
                   eyebrow={`${RULE_DEFINITIONS[spec.rule].label} on ${symbol} · ${formatDate(result.equity[0]?.timestamp ?? null)} to ${formatDate(result.equity[result.equity.length - 1]?.timestamp ?? null)}`}
-                  actions={
-                    singleRun?.cached ? <Badge tone="neutral">Cached</Badge> : undefined
-                  }
                 />
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   {equityBars.length > 1 ? (
                     <PriceChart
                       bars={equityBars}
@@ -494,7 +536,7 @@ export function BacktestWorkspace({
                   title={`${symbol} with trades marked`}
                   eyebrow="Entries above the axis, exits below, coloured by outcome"
                 />
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   <PriceChart
                     bars={result.bars}
                     chartType="line"
@@ -504,28 +546,10 @@ export function BacktestWorkspace({
                     height={260}
                   />
                 </div>
-                {activeMarker && (
-                  <div className="border-t border-hairline bg-sunken px-4 py-3">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="min-w-0">
-                        <Eyebrow>{formatDate(activeMarker.timestamp)}</Eyebrow>
-                        <ul className="mt-1.5 space-y-1">
-                          {(activeMarker.lines ?? [activeMarker.title]).map((line) => (
-                            <li key={line} className="text-[12px] leading-snug text-ink-soft">
-                              {line}
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => setActiveMarker(null)}
-                        className="shrink-0 text-[10px] font-semibold uppercase tracking-wider text-muted hover:text-ink"
-                      >
-                        Close
-                      </button>
-                    </div>
-                  </div>
+                {activeMarker ? (
+                  <MarkerDetail marker={activeMarker} onClose={() => setActiveMarker(null)} />
+                ) : (
+                  tradeMarkers.length > 0 && <PanelNote>Select a marker to see the fill, the outcome and why the trade closed.</PanelNote>
                 )}
               </Panel>
 
@@ -559,6 +583,7 @@ export function BacktestWorkspace({
                   <Metric
                     label="Total return"
                     value={formatPercent(portfolioRun.totalReturn, { signed: true })}
+                    tone={portfolioRun.totalReturn}
                     hint={`${portfolioRun.symbols.length} names, ${maxPositions} position ${maxPositions === 1 ? "slot" : "slots"}`}
                     size="lg"
                   />
@@ -594,7 +619,7 @@ export function BacktestWorkspace({
                   title="Portfolio equity"
                   eyebrow="One cash account shared across every leg"
                 />
-                <div className="p-4">
+                <div className="p-3 sm:p-4">
                   {equityBars.length > 1 ? (
                     <PriceChart
                       bars={equityBars}
@@ -648,11 +673,11 @@ export function BacktestWorkspace({
                     </tbody>
                   </table>
                 </TableScroll>
-                <p className="border-t border-hairline px-4 py-2.5 text-[11px] leading-relaxed text-muted">
+                <PanelNote>
                   Contribution is each symbol&apos;s share of the portfolio&apos;s return over the window, with cash
                   moved into or out of the position removed first. Entries compete for position slots and are ranked by
                   trailing volatility, lowest first, so the result does not depend on the order the names were listed.
-                </p>
+                </PanelNote>
               </Panel>
 
               {portfolioRun.warnings.length > 0 && (

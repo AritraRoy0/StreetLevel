@@ -8,7 +8,7 @@
  */
 
 import Link from "next/link";
-import { Badge, Eyebrow, Panel, PanelHeader } from "@/components/ui";
+import { Badge, EmptyState, Eyebrow, Panel, PanelHeader } from "@/components/ui";
 import { formatDateTime, formatRelativeTime } from "@/lib/analytics";
 import type { NewsArticle } from "@/lib/analytics";
 import { NEWS_SOURCE_NOTE } from "@/lib/news-data";
@@ -40,11 +40,15 @@ export function NewsPanel({
       <PanelHeader
         title={title}
         eyebrow={symbol ? `Tagged ${symbol}` : "Sample feed"}
-        actions={<span className="text-[10px] uppercase tracking-wider text-faint">{articles.length} stories</span>}
+        actions={
+          <span className="text-[11px] text-muted">
+            {articles.length} {articles.length === 1 ? "story" : "stories"}
+          </span>
+        }
       />
 
       {articles.length === 0 ? (
-        <p className="px-4 py-8 text-center text-[12px] text-muted">{emptyMessage}</p>
+        <EmptyState title="No coverage" description={emptyMessage} />
       ) : (
         <ul className="divide-y divide-hairline">
           {articles.map((article) => (
@@ -69,16 +73,16 @@ export function NewsPanel({
                     <Link
                       key={tag}
                       href={`/analytics/${tag}`}
-                      className="font-mono text-[10px] font-semibold text-muted underline-offset-2 hover:text-ink hover:underline"
+                      className="font-mono text-[10px] font-semibold text-ink-soft underline-offset-2 hover:text-ink hover:underline"
                     >
                       {tag}
                     </Link>
                   ))}
                 </div>
                 <Badge tone={SENTIMENT_TONE[article.sentiment]}>{article.sentiment}</Badge>
-                <span className="text-[10px] uppercase tracking-wider text-faint">{article.category}</span>
+                <span className="text-[10px] uppercase tracking-wider text-muted">{article.category}</span>
                 {article.duplicateSources && article.duplicateSources.length > 1 && (
-                  <span className="text-[10px] text-faint">
+                  <span className="text-[11px] text-muted">
                     Also carried by {article.duplicateSources.filter((source) => source !== article.source).join(", ")}
                   </span>
                 )}

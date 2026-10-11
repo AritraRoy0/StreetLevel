@@ -13,13 +13,16 @@
 import { useState } from "react";
 import {
   Badge,
+  Button,
   Callout,
   Delta,
+  EmptyState,
   Metric,
   MetricCell,
   MetricGrid,
   Panel,
   PanelHeader,
+  PanelNote,
   Segmented,
   TableScroll,
   Td,
@@ -49,6 +52,7 @@ export function HeadlineStatistics({ result, className }: { result: BacktestResu
           <Metric
             label="Total return"
             value={formatPercent(result.totalReturn, { signed: true })}
+            tone={result.totalReturn}
             hint={`Buy and hold returned ${formatPercent(result.benchmarkTotalReturn, { signed: true })}`}
             size="lg"
           />
@@ -132,21 +136,18 @@ export function TradeLedger({ result, className }: { result: BacktestResult; cla
         eyebrow={`${result.trades.length} round ${result.trades.length === 1 ? "trip" : "trips"}`}
         actions={
           result.trades.length > 12 ? (
-            <button
-              type="button"
-              onClick={() => setShowAll((current) => !current)}
-              className="border border-hairline px-2 py-1 text-[10px] font-semibold uppercase tracking-wider text-muted hover:text-ink"
-            >
+            <Button size="xs" variant="ghost" onClick={() => setShowAll((current) => !current)}>
               {showAll ? "Show first 12" : `Show all ${result.trades.length}`}
-            </button>
+            </Button>
           ) : undefined
         }
       />
 
       {trades.length === 0 ? (
-        <p className="px-4 py-10 text-center text-[12px] text-muted">
-          The rule never opened a position over this window.
-        </p>
+        <EmptyState
+          title="No trades"
+          description="The rule never opened a position over this window. Try a longer window or looser parameters."
+        />
       ) : (
         <TableScroll>
           <table className="w-full min-w-[880px] border-collapse">
@@ -175,10 +176,10 @@ export function TradeLedger({ result, className }: { result: BacktestResult; cla
         </TableScroll>
       )}
 
-      <p className="border-t border-hairline px-4 py-2.5 text-[11px] leading-relaxed text-muted">
+      <PanelNote>
         Net profit is the mid-price gross less every commission and friction charge on both legs. Worst and best are
         the excursions reached while the position was open, measured from bar lows and highs.
-      </p>
+      </PanelNote>
     </Panel>
   );
 }
@@ -256,7 +257,7 @@ export function BenchmarkPanel({
         }
       />
 
-      <div className="p-4">
+      <div className="p-3 sm:p-4">
         <ComparisonChart
           points={comparison.normalized}
           baseLabel="Strategy"
@@ -269,6 +270,7 @@ export function BenchmarkPanel({
         <Metric
           label="Rule edge"
           value={formatPercent(report.ruleEdge, { signed: true })}
+          tone={report.ruleEdge}
           hint="Strategy less buy and hold"
           size="sm"
         />
@@ -312,11 +314,13 @@ export function BenchmarkPanel({
       )}
 
       {report.warnings.length > 0 && (
-        <ul className="border-t border-hairline px-4 py-2.5 text-[11px] leading-relaxed text-muted">
-          {report.warnings.map((warning) => (
-            <li key={warning}>{warning}</li>
-          ))}
-        </ul>
+        <PanelNote>
+          <ul>
+            {report.warnings.map((warning) => (
+              <li key={warning}>{warning}</li>
+            ))}
+          </ul>
+        </PanelNote>
       )}
     </Panel>
   );
@@ -351,12 +355,20 @@ export function SweepPanel({
   const min = values.length > 0 ? Math.min(...values) : 0;
   const max = values.length > 0 ? Math.max(...values) : 1;
 
-  const shadeOf = (value: number | null): string => {
-    if (value === null || max === min) return "transparent";
+  /**
+   * Ink for strength rather than a hue ramp, which keeps the grid readable for
+   * anyone who cannot separate red from green. The ramp is mixed from the ink
+   * token, so it inverts with the theme.
+   *
+   * It stops at 40% so the figure can stay in full ink on every cell and still
+   * clear roughly 5:1. A deeper ramp needs the text to flip to paper part way
+   * up, and every cell near the flip point is then hard to read in either.
+   */
+  const shadeOf = (value: number | null): { background: string } => {
+    if (value === null || max === min) return { background: "transparent" };
     const scaled = (value - min) / (max - min);
-    // Ink for strength rather than a hue ramp, which keeps the grid readable
-    // for anyone who cannot separate red from green.
-    return `rgba(14, 16, 15, ${(0.05 + scaled * 0.5).toFixed(3)})`;
+    const strength = 4 + scaled * 36;
+    return { background: `color-mix(in srgb, var(--color-ink) ${strength.toFixed(1)}%, transparent)` };
   };
 
   const format = (value: number | null) =>
@@ -366,9 +378,7 @@ export function SweepPanel({
     return (
       <Panel className={cn("min-w-0", className)}>
         <PanelHeader title="Parameter sweep" eyebrow="Needs two axes" />
-        <p className="px-4 py-8 text-center text-[12px] text-muted">
-          This rule does not have two parameters to sweep.
-        </p>
+        <EmptyState title="Nothing to sweep" description="This rule does not have two parameters to sweep." />
       </Panel>
     );
   }
@@ -422,13 +432,17 @@ export function SweepPanel({
                       <Td
                         key={columnValue}
                         align="right"
-                        style={{ background: shadeOf(value) }}
-                        className={cn("cursor-pointer", isBest && "outline outline-1 outline-accent")}
+                        style={shadeOf(value)}
+                        className={cn(
+                          "p-0 transition-[filter] hover:brightness-90",
+                          isBest && "outline outline-2 -outline-offset-2 outline-accent",
+                        )}
                       >
                         <button
                           type="button"
                           onClick={() => cell && onSelectCell(cell.params)}
-                          className="w-full text-right font-mono tabular-nums"
+                          aria-label={cell ? `${rowAxis.param} ${rowValue}, ${columnAxis.param} ${columnValue}: ${value === null ? "no result" : format(value)}${isBest ? ", best cell" : ""}. Load these parameters.` : undefined}
+                          className="w-full px-3 py-2.5 text-right font-mono font-medium tabular-nums text-ink"
                           title={
                             cell
                               ? `${cell.closedTrades} trades · return ${formatPercent(cell.totalReturn)} · Sharpe ${formatRatio(cell.sharpe)}`
@@ -474,7 +488,7 @@ export function SweepPanel({
         />
       </div>
 
-      <div className="border-t border-hairline px-4 py-3 text-[11px] leading-relaxed text-muted">
+      <PanelNote className="py-3">
         <p>
           The deflated Sharpe is the probability that the best cell is genuinely above zero once the number of cells
           searched is priced in. Searching a grid raises the best result even when every rule in it is worthless, and
@@ -487,8 +501,8 @@ export function SweepPanel({
             ))}
           </ul>
         )}
-        <p className="mt-1.5 text-faint">Click a cell to load its parameters into the strategy.</p>
-      </div>
+        <p className="mt-1.5 font-semibold text-ink-soft">Select a cell to load its parameters into the strategy.</p>
+      </PanelNote>
     </Panel>
   );
 }
@@ -515,9 +529,7 @@ export function WalkForwardPanel({
       />
 
       {result.folds.length === 0 ? (
-        <p className="px-4 py-8 text-center text-[12px] text-muted">
-          The window is too short to split into folds.
-        </p>
+        <EmptyState title="Too short to split" description="The window does not hold enough sessions for three folds." />
       ) : (
         <TableScroll>
           <table className="w-full min-w-[640px] border-collapse">
@@ -564,7 +576,7 @@ export function WalkForwardPanel({
         <Metric label="Folds positive" value={formatPercent(result.hitRate, { digits: 0 })} size="sm" />
       </div>
 
-      <div className="border-t border-hairline px-4 py-3 text-[11px] leading-relaxed text-muted">
+      <PanelNote className="py-3">
         <p>
           Each fold picks parameters on the earlier slice and measures them on the slice that follows, which the
           choice never saw. This is the only figure on the page that the search did not contaminate.
@@ -576,7 +588,7 @@ export function WalkForwardPanel({
             ))}
           </ul>
         )}
-      </div>
+      </PanelNote>
     </Panel>
   );
 }

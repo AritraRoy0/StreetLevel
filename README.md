@@ -30,11 +30,8 @@ The product philosophy is simple:
 The main dashboard provides a high-level operating view of the market, including:
 
 - Market pulse and session context
-- Portfolio summary
-- Active signals and alerts
 - Stock leaders and daily movement
 - Market/news context
-- Signal-board previews
 - Interactive stock detail views
 
 ### Analytics
@@ -52,16 +49,6 @@ The analytics workspace currently supports:
 - 52-week price positioning
 - Z-score analysis
 - Historical session counts
-
-### Signals
-
-The signals workspace provides a foundation for rule-based market monitoring:
-
-- Bullish / Neutral / Bearish filtering
-- Signal rule listings
-- Active/paused rule states
-- Price and moving-average conditions
-- Rule creation UI
 
 ### Performance
 
@@ -166,8 +153,6 @@ streetlevel/
 │   │   └── page.tsx
 │   ├── performance/
 │   │   └── page.tsx
-│   ├── signals/
-│   │   └── page.tsx
 │   ├── globals.css
 │   ├── layout.tsx
 │   └── page.tsx
@@ -264,7 +249,6 @@ http://localhost:3000
 |---|---|
 | `/` | Market overview |
 | `/analytics` | Historical and technical analytics |
-| `/signals` | Signal rules and market signals |
 | `/performance` | Performance and risk analysis |
 
 ## Available Scripts

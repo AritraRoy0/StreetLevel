@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { AnalyticsView } from "@/components/analytics/analytics-view";
-import { Footer, PageShell, StatusStrip, TopNav } from "@/components/shell";
+import { Footer, PageShell, StatusStrip } from "@/components/shell";
 import {
   BENCHMARKS,
   COMPOSITE_SYMBOL,
@@ -12,7 +12,7 @@ import {
   SYMBOLS,
 } from "@/lib/market-data";
 import { NEWS_FEED } from "@/lib/news-data";
-import { getPosition } from "@/lib/portfolio-service";
+import { SYMBOL_DIRECTORY } from "@/lib/symbol-directory";
 import { newsForSymbol } from "@/lib/analytics";
 import type { DataQuality } from "@/lib/analytics";
 
@@ -71,12 +71,10 @@ export default async function SymbolAnalyticsPage({ params }: { params: Promise<
   const benchmarkSymbol = symbol === COMPOSITE_SYMBOL ? SYMBOLS[0] : COMPOSITE_SYMBOL;
   const benchmarkBars = getBars(benchmarkSymbol);
 
-  const position = getPosition(symbol);
   const news = newsForSymbol(NEWS_FEED, symbol, { limit: 10 });
 
   return (
     <>
-      <TopNav />
       <StatusStrip
         asOf={quality.lastBar}
         source={DATASET.source}
@@ -93,11 +91,8 @@ export default async function SymbolAnalyticsPage({ params }: { params: Promise<
           benchmarkBars={benchmarkBars}
           benchmarkOptions={BENCHMARKS}
           news={news}
-          position={position}
-          peers={[...SYMBOLS, COMPOSITE_SYMBOL].map((item) => ({
-            symbol: item,
-            name: getProfile(item).name,
-          }))}
+          directory={SYMBOL_DIRECTORY}
+          backtestable={SYMBOLS.includes(symbol)}
         />
         <Footer source={DATASET.source} downloadedAt={DATASET.downloadedAt} />
       </PageShell>

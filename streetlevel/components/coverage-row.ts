@@ -12,6 +12,7 @@
 
 import type { AnalyticsSummary } from "@/lib/analytics";
 import type { SymbolProfile } from "@/lib/market-data";
+import { thinSeries } from "@/components/charts/sparkline";
 
 export interface CoverageRow {
   symbol: string;
@@ -24,7 +25,12 @@ export interface CoverageRow {
   rsi: number | null;
   rsiZone: "overbought" | "oversold" | "neutral" | null;
   volume: number | null;
-  /** Closes for the trend glyph only, trimmed to what it can actually draw. */
+  /**
+   * Closes for the trend glyph only, thinned to what it can actually draw.
+   * They span the whole window, so the glyph in the "1Y trend" column agrees
+   * with the 1Y return beside it; the last few weeks alone once drew a falling
+   * red line next to a name up 180% on the year.
+   */
   spark: number[];
 }
 
@@ -32,7 +38,7 @@ export function toCoverageRow(
   symbol: string,
   profile: SymbolProfile,
   summary: AnalyticsSummary,
-  sparkPoints = 48,
+  sparkPoints = 64,
 ): CoverageRow {
   return {
     symbol,
@@ -45,6 +51,9 @@ export function toCoverageRow(
     rsi: summary.rsi.value,
     rsiZone: summary.rsi.zone,
     volume: summary.volume.latest,
-    spark: summary.bars.slice(-sparkPoints).map((bar) => Number(bar.adjClose.toFixed(2))),
+    spark: thinSeries(
+      summary.bars.map((bar) => bar.adjClose),
+      sparkPoints,
+    ).map((value) => Number(value.toFixed(2))),
   };
 }
