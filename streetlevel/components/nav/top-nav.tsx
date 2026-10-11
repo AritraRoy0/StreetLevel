@@ -9,9 +9,9 @@
  * error and not-found states keep it too.
  *
  * Above the `md` breakpoint the sections sit in the bar with search and the
- * theme switch beside them. Below it they fold into a menu: five uppercase
- * links do not fit a phone, and the earlier sideways-scrolling row cut
- * "Signals" in half with nothing to say that more existed.
+ * theme switch beside them. Below it they fold into a menu: the earlier
+ * sideways-scrolling row cut the last link in half with nothing to say that
+ * more existed.
  */
 
 import Link from "next/link";

@@ -31,7 +31,6 @@ import {
   Badge,
   Callout,
   Delta,
-  EmptyState,
   Eyebrow,
   Field,
   Kbd,
@@ -69,7 +68,6 @@ import type {
   DataQuality,
   Interval,
   NewsArticle,
-  PositionMetrics,
   RangeKey,
 } from "@/lib/analytics";
 import { INTERVAL_SUPPORT } from "@/lib/analytics-validation";
@@ -114,7 +112,6 @@ export function AnalyticsView({
   benchmarkBars,
   benchmarkOptions,
   news,
-  position,
   directory,
   backtestable,
 }: {
@@ -126,7 +123,6 @@ export function AnalyticsView({
   benchmarkBars: Bar[];
   benchmarkOptions: Array<{ symbol: string; label: string; description: string }>;
   news: Array<NewsArticle & { duplicateSources: string[] }>;
-  position: PositionMetrics | null;
   /** Every covered symbol with its latest move, for the switcher. */
   directory: DirectoryEntry[];
   /** Whether the backtest workspace can run this symbol. The composite cannot. */
@@ -267,11 +263,6 @@ export function AnalyticsView({
             </div>
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               <Badge>{profile.sector}</Badge>
-              {position && (
-                <a href="#position" className="transition-opacity hover:opacity-80">
-                  <Badge tone="accent">Held · {formatPercent(position.weight, { digits: 1 })} of book</Badge>
-                </a>
-              )}
             </div>
             <p className="mt-3 text-[13px] leading-relaxed text-muted">{profile.description}</p>
           </div>
@@ -602,64 +593,14 @@ export function AnalyticsView({
       />
 
       {/* ----------------------------------------------------------------- */}
-      {/* Position and news                                                  */}
+      {/* News                                                               */}
       {/* ----------------------------------------------------------------- */}
-      <section className="grid gap-6 lg:grid-cols-2 lg:items-start">
-        <Panel id="position" className="min-w-0 scroll-mt-32">
-          <PanelHeader
-            title="Your position"
-            eyebrow="From the sample transaction log"
-            actions={
-              <Link href="/portfolio" className={buttonClass({ variant: "ghost", size: "xs" })}>
-                Portfolio
-              </Link>
-            }
-          />
-          {position ? (
-            <div className="grid grid-cols-2 gap-x-4 gap-y-5 p-4 sm:grid-cols-3">
-              <Metric label="Shares" value={position.shares.toLocaleString("en-US")} size="sm" />
-              <Metric label="Average cost" value={formatPrice(position.averageCost)} size="sm" />
-              <Metric label="Market value" value={formatPrice(position.marketValue)} size="sm" />
-              <Metric
-                label="Unrealized"
-                value={formatPriceChange(position.unrealizedPl)}
-                tone={position.unrealizedPl}
-                hint={formatPercent(position.unrealizedPlPercent, { signed: true })}
-                size="sm"
-              />
-              <Metric
-                label="Realized"
-                value={formatPriceChange(position.realizedPl)}
-                tone={position.realizedPl}
-                size="sm"
-              />
-              <Metric
-                label="Weight"
-                value={formatPercent(position.weight, { digits: 1 })}
-                hint="Share of portfolio value"
-                size="sm"
-              />
-            </div>
-          ) : (
-            <EmptyState
-              title={`No position in ${symbol}`}
-              description="The sample transaction log never bought this name."
-              action={
-                <Link href="/portfolio" className={buttonClass({ variant: "secondary", size: "xs" })}>
-                  See current holdings
-                </Link>
-              }
-            />
-          )}
-        </Panel>
-
-        <NewsPanel
-          articles={news}
-          symbol={symbol}
-          title="Coverage"
-          emptyMessage={`No sample coverage tagged ${symbol}.`}
-        />
-      </section>
+      <NewsPanel
+        articles={news}
+        symbol={symbol}
+        title="Coverage"
+        emptyMessage={`No sample coverage tagged ${symbol}.`}
+      />
 
       <p className="border-t border-hairline pt-4 text-[11px] leading-relaxed text-muted">
         Returns, volatility and drawdown are computed from split- and dividend-adjusted closes. Open, high, low and

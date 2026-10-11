@@ -24,7 +24,7 @@ export const metadata: Metadata = {
     template: "%s / StreetLevel",
   },
   description:
-    "A market research workspace: price analytics, technical indicators, benchmark comparison and portfolio attribution.",
+    "A market research workspace: price analytics, technical indicators, benchmark comparison and backtesting.",
 };
 
 /** The browser chrome matches the navigation band, which is dark in both themes. */

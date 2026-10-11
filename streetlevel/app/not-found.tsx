@@ -50,8 +50,8 @@ export default function NotFound() {
             <Link href="/" className={buttonClass({ variant: "primary", size: "md" })}>
               Overview
             </Link>
-            <Link href="/portfolio" className={buttonClass({ variant: "secondary", size: "md" })}>
-              Portfolio
+            <Link href="/analytics" className={buttonClass({ variant: "secondary", size: "md" })}>
+              Analytics
             </Link>
             <span className="ml-2 hidden items-center gap-1.5 text-[12px] text-muted sm:inline-flex">
               or press <Kbd>/</Kbd> to search

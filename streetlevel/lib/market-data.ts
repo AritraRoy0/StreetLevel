@@ -224,7 +224,7 @@ export const DATASET = {
 
 /**
  * One-year snapshots for every symbol, read through `SYMBOL_ROWS` by the
- * overview coverage table, the signal board and the performance cross-section.
+ * overview coverage table and the performance cross-section.
  * Built once at module load; the dataset is static, so there is
  * nothing to invalidate and no reason to recompute per request.
  */
@@ -243,9 +243,3 @@ export const SYMBOL_ROWS: SymbolRow[] = SYMBOLS.map((symbol) => ({
   profile: getProfile(symbol),
   summary: SNAPSHOTS[symbol],
 }));
-
-/** Adjusted closing prices of the last `count` sessions, for sparklines. */
-export function sparklineFor(symbol: string, count = 40): number[] {
-  const bars = getBars(symbol);
-  return bars.slice(-count).map((bar) => bar.adjClose);
-}

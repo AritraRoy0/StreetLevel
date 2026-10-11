@@ -21,20 +21,6 @@ export const NAV_ITEMS: Array<{
     match: (path) => path.startsWith("/analytics"),
   },
   {
-    href: "/portfolio",
-    label: "Portfolio",
-    description: "Holdings, attribution and portfolio risk",
-    keywords: ["holdings", "positions", "attribution", "allocation"],
-    match: (path) => path.startsWith("/portfolio"),
-  },
-  {
-    href: "/signals",
-    label: "Signals",
-    description: "Rule conditions met across coverage",
-    keywords: ["screen", "screener", "alerts", "conditions"],
-    match: (path) => path.startsWith("/signals"),
-  },
-  {
     href: "/performance",
     label: "Performance",
     description: "Backtests and relative strength",
