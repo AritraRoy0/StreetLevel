@@ -27,4 +27,18 @@ export const NAV_ITEMS: Array<{
     keywords: ["backtest", "strategy", "simulation", "cross-section", "relative"],
     match: (path) => path.startsWith("/performance"),
   },
+  {
+    href: "/compare",
+    label: "Compare",
+    description: "Two stocks head to head",
+    keywords: ["versus", "vs", "head to head", "pair", "correlation", "beta"],
+    match: (path) => path.startsWith("/compare"),
+  },
+  {
+    href: "/learn",
+    label: "Learn",
+    description: "Indicators and risk metrics explained",
+    keywords: ["guide", "learn", "formula", "methodology", "explained", "sharpe", "drawdown"],
+    match: (path) => path.startsWith("/learn") || path.startsWith("/methodology"),
+  },
 ];

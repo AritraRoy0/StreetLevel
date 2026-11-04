@@ -8,6 +8,7 @@
     "start": "next start -p 3001",
     "lint": "eslint",
     "typecheck": "tsc --noEmit",
+    "icons": "node scripts/generate-icons.mjs",
     "test": "node --experimental-strip-types --test \"tests/**/*.test.ts\"",
     "test:watch": "node --experimental-strip-types --test --watch \"tests/**/*.test.ts\""
   },

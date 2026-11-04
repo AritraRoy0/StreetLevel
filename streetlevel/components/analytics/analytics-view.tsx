@@ -255,12 +255,13 @@ export function AnalyticsView({
       <header ref={headerRef} className="mb-5 space-y-5 sm:mb-6">
         <div className="flex flex-wrap items-start justify-between gap-x-8 gap-y-5">
           <div className="min-w-0 max-w-2xl">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
-              <h1 className="font-mono text-[28px] font-semibold leading-none tracking-tight text-ink sm:text-[32px]">
+            {/* The company name sits inside the heading so the page's main heading names the company, not only the ticker. */}
+            <h1 className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <span className="font-mono text-[28px] font-semibold leading-none tracking-tight text-ink sm:text-[32px]">
                 {symbol}
-              </h1>
+              </span>
               <span className="text-[15px] text-ink-soft">{profile.name}</span>
-            </div>
+            </h1>
             <div className="mt-2.5 flex flex-wrap items-center gap-1.5">
               <Badge>{profile.sector}</Badge>
             </div>

@@ -17,9 +17,10 @@
 import { useEffect, useId, useMemo, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, CornerDownLeft, Moon, Search, Sun } from "lucide-react";
+import { ArrowUpRight, BookOpen, CornerDownLeft, Moon, Search, Sun } from "lucide-react";
 import { Delta, Kbd } from "@/components/ui";
 import { formatPrice } from "@/lib/analytics";
+import { GUIDE_CATALOG } from "@/lib/learn/catalog";
 import type { DirectoryEntry } from "@/lib/symbol-directory";
 import { cn } from "@/lib/utils";
 import { setThemePreference, useTheme } from "./theme";
@@ -28,11 +29,13 @@ import { NAV_ITEMS } from "./nav-items";
 type Item =
   | { kind: "symbol"; id: string; entry: DirectoryEntry; href: string }
   | { kind: "page"; id: string; label: string; description: string; href: string }
+  | { kind: "guide"; id: string; label: string; description: string; href: string }
   | { kind: "action"; id: string; label: string; description: string; icon: ReactNode; run: () => void };
 
 const GROUP_LABEL: Record<Item["kind"], string> = {
   symbol: "Symbols",
   page: "Pages",
+  guide: "Guides",
   action: "Settings",
 };
 
@@ -86,6 +89,22 @@ export function CommandPalette({
       (item) => !q || item.label.toLowerCase().includes(q) || item.keywords.some((keyword) => keyword.includes(q)),
     ).map((item): Item => ({ kind: "page", id: `page-${item.href}`, label: item.label, description: item.description, href: item.href }));
 
+    // Guides appear only once something is typed, so the opening list stays a list of places to go.
+    const guides = q
+      ? GUIDE_CATALOG.filter(
+          (guide) =>
+            guide.title.toLowerCase().includes(q) ||
+            guide.shortTitle.toLowerCase().includes(q) ||
+            guide.keywords.some((keyword) => keyword.includes(q)),
+        ).map((guide): Item => ({
+          kind: "guide",
+          id: `guide-${guide.slug}`,
+          label: guide.title,
+          description: guide.category,
+          href: `/learn/${guide.slug}`,
+        }))
+      : [];
+
     const next = resolved === "dark" ? "light" : "dark";
     const themeAction: Item = {
       kind: "action",
@@ -97,7 +116,7 @@ export function CommandPalette({
     };
     const actions = !q || ["theme", "dark", "light", "mode", "colour", "color"].some((word) => word.startsWith(q)) ? [themeAction] : [];
 
-    return [...symbols, ...pages, ...actions];
+    return [...symbols, ...pages, ...guides, ...actions];
   }, [directory, query, resolved]);
 
   // Lock the page behind the dialog, and hand focus back to whatever opened it.
@@ -272,10 +291,11 @@ function PaletteRow({ item }: { item: Item }) {
       </>
     );
   }
-  if (item.kind === "page") {
+  if (item.kind === "page" || item.kind === "guide") {
+    const Icon = item.kind === "guide" ? BookOpen : ArrowUpRight;
     return (
       <>
-        <ArrowUpRight aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
+        <Icon aria-hidden="true" className="h-3.5 w-3.5 shrink-0 text-muted" />
         <span className="min-w-0 flex-1">
           <span className="block text-[13px] font-medium text-ink">{item.label}</span>
           <span className="block truncate text-[11px] text-muted">{item.description}</span>

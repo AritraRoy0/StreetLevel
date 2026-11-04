@@ -3,7 +3,9 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { Analytics } from "@vercel/analytics/next";
 import { TopNav } from "@/components/nav/top-nav";
 import { THEME_SCRIPT } from "@/components/nav/theme-script";
+import { SiteFooter } from "@/components/site-footer";
 import { SYMBOL_DIRECTORY } from "@/lib/symbol-directory";
+import { SITE_DESCRIPTION, SITE_LOCALE, SITE_NAME, SITE_URL, isIndexable } from "@/lib/site";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -18,13 +20,56 @@ const geistMono = Geist_Mono({
   display: "swap",
 });
 
+/**
+ * Search-console ownership tokens, read from the environment so they can be
+ * added on the hosting dashboard without a code change.
+ */
+const googleVerification = process.env.GOOGLE_SITE_VERIFICATION;
+const bingVerification = process.env.BING_SITE_VERIFICATION;
+
+/**
+ * Site-wide metadata defaults.
+ *
+ * Pages build their own title, description, canonical and share tags through
+ * `pageMetadata` in `lib/seo.ts`; what is set here is what every page shares.
+ * `metadataBase` lets those pages give relative URLs. The robots policy opens
+ * full-size image previews and unlimited snippets, which is what makes a page
+ * eligible for large cards in Discover and for long result snippets, and it
+ * closes the whole site on preview deployments so they never compete with
+ * production in search. It does not state `index, follow`, which is the
+ * default anyway: stating it would contradict the `noindex` Next adds to 404s.
+ */
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: {
-    default: "StreetLevel",
-    template: "%s / StreetLevel",
+    default: `${SITE_NAME}: Free Stock Analytics, Technical Indicators and Backtesting`,
+    template: `%s / ${SITE_NAME}`,
   },
-  description:
-    "A market research workspace: price analytics, technical indicators, benchmark comparison and backtesting.",
+  description: SITE_DESCRIPTION,
+  applicationName: SITE_NAME,
+  category: "finance",
+  // Prices and volumes such as 123-456 would otherwise become phone links on iOS.
+  formatDetection: { telephone: false, address: false, email: false },
+  openGraph: {
+    type: "website",
+    siteName: SITE_NAME,
+    locale: SITE_LOCALE,
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: SITE_NAME,
+    description: SITE_DESCRIPTION,
+  },
+  robots: isIndexable(process.env)
+    ? { googleBot: { "max-image-preview": "large", "max-snippet": -1, "max-video-preview": -1 } }
+    : { index: false, follow: false },
+  appleWebApp: { title: SITE_NAME },
+  verification: {
+    ...(googleVerification ? { google: googleVerification } : {}),
+    ...(bingVerification ? { other: { "msvalidate.01": bingVerification } } : {}),
+  },
 };
 
 /** The browser chrome matches the navigation band, which is dark in both themes. */
@@ -60,6 +105,7 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
         </a>
         <TopNav directory={SYMBOL_DIRECTORY} />
         {children}
+        <SiteFooter />
         <Analytics />
       </body>
     </html>

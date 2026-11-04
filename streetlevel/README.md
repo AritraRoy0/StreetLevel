@@ -11,6 +11,7 @@ npm run start      # production server on http://localhost:3001
 npm test           # analytics test suite
 npm run typecheck  # tsc --noEmit
 npm run lint       # eslint
+npm run icons      # re-cut the favicon and app icons from app/icon.svg
 ```
 
 Both servers are pinned to port 3001 rather than Next's default 3000, which
@@ -28,15 +29,23 @@ example `npm run start -- -p 4000`.
 | `components/charts/` | SVG charts, with geometry split out as pure functions. |
 | `components/ui.tsx` | The primitive set: metrics, panels, controls, tables. |
 | `lib/backtest/` | The backtest engine. Signals, execution, sweeps, attribution. |
+| `lib/site.ts`, `lib/seo.ts` | The public origin, page metadata and structured data. |
+| `lib/learn/` | Guide catalog (client-safe) and guide bodies (server-only). |
+| `lib/comparisons.ts` | Head-to-head pairs, bound to the dataset. |
+| `lib/og.tsx` | The share-card renderer behind every `opengraph-image`. |
 | `docs/analytics.md` | Formulas, edge cases, rounding and null behaviour. |
 | `docs/backtest.md` | Fill assumptions, the trade ledger identity, multiple-testing. |
-| `tests/` | 509 tests over the engines, the charts and the API. |
+| `tests/` | 525 tests over the engines, the charts, the API and the URL scheme. |
 
 ## Pages
 
 - `/` coverage, market aggregates and the news wire
-- `/analytics/[symbol]` the single-symbol workspace
+- `/analytics/[symbol]` the single-symbol workspace, with a written summary
 - `/performance` a backtest workspace, plus the cross-sectional comparison
+- `/compare` and `/compare/[pair]` every pairing of the covered names, head to head
+- `/learn` and `/learn/[slug]` guides to each indicator and risk measure, with live readings
+- `/methodology` how every figure is computed, for readers rather than developers
+- `/about` what the site is, where the data comes from, and the disclaimer
 
 ## Interface
 
@@ -101,6 +110,38 @@ even when every rule in it is worthless. See `docs/backtest.md`.
 
 Errors are `{ error: { code, message, action? } }` with a fixed status per code.
 See `docs/analytics.md` for the full contract.
+
+## Search and sharing
+
+Every page builds its metadata through `pageMetadata` in `lib/seo.ts`, which
+always emits a canonical URL, Open Graph and Twitter tags together. Next merges
+metadata shallowly, so a page that set only part of `openGraph` would silently
+drop the rest. Pages that carry structured data render it with `<JsonLd>`; FAQ
+and breadcrumb data is only ever emitted for content visible on the page.
+
+Absolute URLs come from one origin, resolved in `lib/site.ts`:
+
+| Variable | Effect |
+| --- | --- |
+| `NEXT_PUBLIC_SITE_URL` | The public origin. Set it once a custom domain is attached. |
+| `VERCEL_PROJECT_PRODUCTION_URL` | Set by Vercel; the fallback, so previews point canonicals at production. |
+| `GOOGLE_SITE_VERIFICATION` | Optional Search Console token, emitted as a meta tag. |
+| `BING_SITE_VERIFICATION` | Optional Bing Webmaster token, emitted as `msvalidate.01`. |
+
+Generated at build time: `robots.txt` (closed entirely on Vercel previews),
+`sitemap.xml` (canonical URLs only), `manifest.webmanifest`, `llms.txt` for
+answer engines, and a share card per page from the `opengraph-image` files.
+Card fonts are the Geist files in `assets/fonts`, under the OFL.
+
+`proxy.ts` redirects a mistyped case to the canonical URL: `/analytics/nvda` to
+`/analytics/NVDA`, `/compare/NVDA-vs-AMD` to `/compare/nvda-vs-amd`. Its matchers
+only fire on the wrong case, so canonical URLs never run it. A reversed pair,
+`/compare/amd-vs-nvda`, redirects from the page itself.
+
+To add a guide, add a row to `lib/learn/catalog.ts` and a body to
+`lib/learn/guides.ts`; the page, sitemap entry, share card, guide index, search
+and `llms.txt` all follow. The footer and overview show a curated subset. Keep figures out of the prose and in a live panel, so the text cannot go
+stale when the data is refreshed, and bump `CONTENT_UPDATED` in `lib/site.ts`.
 
 ## Tests
 
