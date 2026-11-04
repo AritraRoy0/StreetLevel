@@ -38,6 +38,10 @@ interface PriceFile {
 export interface SymbolProfile {
   symbol: string;
   name: string;
+  /** The name people search by, such as "NVIDIA" for NVIDIA Corporation. */
+  shortName: string;
+  /** Primary listing, for the ticker in structured data. Absent for the composite. */
+  exchange?: string;
   sector: string;
   /** Market capitalisation in USD. */
   marketCap: number;
@@ -55,6 +59,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   NVDA: {
     symbol: "NVDA",
     name: "NVIDIA Corporation",
+    shortName: "NVIDIA",
+    exchange: "NASDAQ",
     sector: "Semiconductors",
     marketCap: 3.16e12,
     peRatio: 74.2,
@@ -63,6 +69,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   AAPL: {
     symbol: "AAPL",
     name: "Apple Inc.",
+    shortName: "Apple",
+    exchange: "NASDAQ",
     sector: "Consumer Electronics",
     marketCap: 3.52e12,
     peRatio: 34.5,
@@ -71,6 +79,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   MSFT: {
     symbol: "MSFT",
     name: "Microsoft Corporation",
+    shortName: "Microsoft",
+    exchange: "NASDAQ",
     sector: "Software & Cloud",
     marketCap: 3.28e12,
     peRatio: 38.9,
@@ -79,6 +89,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   AMZN: {
     symbol: "AMZN",
     name: "Amazon.com, Inc.",
+    shortName: "Amazon",
+    exchange: "NASDAQ",
     sector: "E-Commerce & Cloud",
     marketCap: 1.94e12,
     peRatio: 51.4,
@@ -87,6 +99,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   GOOGL: {
     symbol: "GOOGL",
     name: "Alphabet Inc.",
+    shortName: "Alphabet",
+    exchange: "NASDAQ",
     sector: "Internet & Services",
     marketCap: 2.22e12,
     peRatio: 27.8,
@@ -95,6 +109,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   META: {
     symbol: "META",
     name: "Meta Platforms, Inc.",
+    shortName: "Meta",
+    exchange: "NASDAQ",
     sector: "Internet & Services",
     marketCap: 1.54e12,
     peRatio: 28.1,
@@ -103,6 +119,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   TSLA: {
     symbol: "TSLA",
     name: "Tesla, Inc.",
+    shortName: "Tesla",
+    exchange: "NASDAQ",
     sector: "Automotive & Clean Energy",
     marketCap: 8.154e11,
     peRatio: 92.1,
@@ -111,6 +129,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   AVGO: {
     symbol: "AVGO",
     name: "Broadcom Inc.",
+    shortName: "Broadcom",
+    exchange: "NASDAQ",
     sector: "Semiconductors",
     marketCap: 7.62e11,
     peRatio: 42.1,
@@ -119,6 +139,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   AMD: {
     symbol: "AMD",
     name: "Advanced Micro Devices, Inc.",
+    shortName: "AMD",
+    exchange: "NASDAQ",
     sector: "Semiconductors",
     marketCap: 2.492e11,
     peRatio: 115.4,
@@ -127,6 +149,8 @@ export const PROFILES: Record<string, SymbolProfile> = {
   PLTR: {
     symbol: "PLTR",
     name: "Palantir Technologies Inc.",
+    shortName: "Palantir",
+    exchange: "NASDAQ",
     sector: "Software & AI",
     marketCap: 6.68e11,
     peRatio: 82,
@@ -139,6 +163,7 @@ function profileFor(symbol: string): SymbolProfile {
     PROFILES[symbol] ?? {
       symbol,
       name: symbol,
+      shortName: symbol,
       sector: "Unclassified",
       marketCap: Number.NaN,
       peRatio: Number.NaN,
@@ -199,6 +224,7 @@ export function getProfile(symbol: string): SymbolProfile {
     return {
       symbol: COMPOSITE_SYMBOL,
       name: "StreetLevel 10 composite",
+      shortName: "SL10 composite",
       sector: "Composite index",
       marketCap: Number.NaN,
       peRatio: Number.NaN,

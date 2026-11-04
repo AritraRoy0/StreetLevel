@@ -1,7 +1,7 @@
 import Link from "next/link";
-import { Footer, PageShell } from "@/components/shell";
+import { PageShell } from "@/components/shell";
 import { Callout, Eyebrow, Kbd, buttonClass } from "@/components/ui";
-import { COMPOSITE_SYMBOL, DATASET, SYMBOLS } from "@/lib/market-data";
+import { COMPOSITE_SYMBOL, SYMBOLS } from "@/lib/market-data";
 
 export const metadata = { title: "Not found" };
 
@@ -53,12 +53,14 @@ export default function NotFound() {
             <Link href="/analytics" className={buttonClass({ variant: "secondary", size: "md" })}>
               Analytics
             </Link>
+            <Link href="/learn" className={buttonClass({ variant: "secondary", size: "md" })}>
+              Guides
+            </Link>
             <span className="ml-2 hidden items-center gap-1.5 text-[12px] text-muted sm:inline-flex">
               or press <Kbd>/</Kbd> to search
             </span>
           </div>
         </div>
-        <Footer source={DATASET.source} downloadedAt={DATASET.downloadedAt} />
       </PageShell>
     </>
   );

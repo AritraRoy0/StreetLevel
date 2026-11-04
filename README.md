@@ -248,8 +248,12 @@ http://localhost:3000
 | Route | Description |
 |---|---|
 | `/` | Market overview |
-| `/analytics` | Historical and technical analytics |
-| `/performance` | Performance and risk analysis |
+| `/analytics/[symbol]` | Historical and technical analytics for one symbol |
+| `/performance` | Backtesting and relative strength |
+| `/compare/[pair]` | Two covered stocks head to head |
+| `/learn/[slug]` | Guides to each indicator and risk measure |
+| `/methodology` | How every figure is computed |
+| `/about` | About the project and its data |
 
 ## Available Scripts
 

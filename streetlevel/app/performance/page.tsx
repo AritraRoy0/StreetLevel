@@ -1,9 +1,24 @@
-import { Footer, PageHeader, PageShell, StatusStrip } from "@/components/shell";
+import { PageHeader, PageShell, StatusStrip } from "@/components/shell";
 import { PerformanceTabs } from "@/components/performance/performance-tabs";
 import { CrossSectionView } from "@/components/performance/cross-section-view";
+import { JsonLd } from "@/components/json-ld";
 import { COMPOSITE_BARS, DATA_QUALITY, DATASET, PRICE_BOOK, SYMBOLS } from "@/lib/market-data";
+import { graph, pageMetadata, webPageNode } from "@/lib/seo";
 
-export const metadata = { title: "Performance" };
+const DESCRIPTION =
+  "Backtest eight trading rules, from SMA and EMA crossovers to RSI, MACD, Bollinger and Donchian strategies, on ten large-cap stocks with costs, slippage and stops modelled. Free, no sign-up.";
+
+/**
+ * Every shared run is this page with a query string, so the canonical is the
+ * bare path: a thousand linked backtests are one page to a search engine, not
+ * a thousand thin duplicates of it.
+ */
+export const metadata = pageMetadata({
+  title: "Free Stock Backtester: Test SMA, RSI, MACD and Bollinger Strategies",
+  socialTitle: "Stock strategy backtester",
+  description: DESCRIPTION,
+  path: "/performance",
+});
 
 /**
  * The performance page.
@@ -38,6 +53,16 @@ export default async function PerformancePage({
 
   return (
     <>
+      <JsonLd
+        data={graph(
+          webPageNode({
+            path: "/performance",
+            name: "Stock strategy backtester",
+            description: DESCRIPTION,
+            dateModified: DATASET.downloadedAt,
+          }),
+        )}
+      />
       <StatusStrip
         asOf={quality?.lastBar ?? null}
         source={DATASET.source}
@@ -46,8 +71,8 @@ export default async function PerformancePage({
       />
       <PageShell>
         <PageHeader
-          eyebrow="Simulation and relative strength"
-          title="Performance"
+          eyebrow="Performance"
+          title="Strategy backtester and relative strength"
           description="Run a rule over the bundled history under stated cost and fill assumptions, or compare every covered name against the equal-weight composite."
         />
 
@@ -61,7 +86,6 @@ export default async function PerformancePage({
           crossSection={<CrossSectionView />}
         />
 
-        <Footer source={DATASET.source} downloadedAt={DATASET.downloadedAt} />
       </PageShell>
     </>
   );

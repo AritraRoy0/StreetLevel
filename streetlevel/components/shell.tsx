@@ -1,11 +1,11 @@
 "use client";
 
 /**
- * The page frame: status strip, content column, page header and footer.
+ * The page frame: status strip, content column and page header.
  *
- * The primary navigation is not here. It is rendered once by the root layout,
- * so it survives loading, error and not-found states without every page
- * remembering to include it.
+ * The primary navigation and the footer are not here. Both are rendered once
+ * by the root layout, so they survive loading, error and not-found states
+ * without every page remembering to include them.
  */
 
 import { useEffect, useState, type ReactNode } from "react";
@@ -111,20 +111,5 @@ export function PageHeader({
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>
-  );
-}
-
-export function Footer({ source, downloadedAt }: { source: string; downloadedAt: string }) {
-  return (
-    <footer className="mt-16 border-t border-hairline-strong pt-6 sm:mt-20">
-      <div className="flex flex-col gap-3 text-[10px] font-semibold uppercase tracking-[0.14em] text-muted sm:flex-row sm:items-center sm:justify-between">
-        <span>StreetLevel / market research</span>
-        <div className="flex flex-wrap gap-x-6 gap-y-1">
-          <span>{source}</span>
-          <span>Snapshot {formatDate(downloadedAt)}</span>
-          <span>Demonstration data, not investment advice</span>
-        </div>
-      </div>
-    </footer>
   );
 }

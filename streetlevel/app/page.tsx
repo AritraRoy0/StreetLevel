@@ -1,10 +1,11 @@
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
-import { Footer, PageShell, StatusStrip } from "@/components/shell";
+import { PageShell, StatusStrip } from "@/components/shell";
 import { CoverageTable } from "@/components/coverage-table";
 import { toCoverageRow } from "@/components/coverage-row";
 import { NewsPanel } from "@/components/news-panel";
 import { DataQualityNotice } from "@/components/data-quality-notice";
+import { JsonLd } from "@/components/json-ld";
 import {
   Badge,
   Delta,
@@ -30,8 +31,25 @@ import {
 import type { SymbolRow } from "@/lib/market-data";
 import { NEWS_FEED } from "@/lib/news-data";
 import { buildSummary, formatPercent, mean } from "@/lib/analytics";
+import { COMPARISON_ORDER, COMPARISON_PAIRS, POPULAR_PAIRS } from "@/lib/comparisons";
+import { GUIDE_CATALOG } from "@/lib/learn/catalog";
+import { SITE_NAME } from "@/lib/site";
+import { graph, organizationNode, pageMetadata, webApplicationNode, webPageNode, websiteNode } from "@/lib/seo";
 
-export const metadata = { title: "Overview" };
+const TITLE = `${SITE_NAME}: Free Stock Analytics, Technical Indicators and Backtesting`;
+
+const DESCRIPTION = `Free stock analytics for ${SYMBOLS.length} large-cap stocks including ${COMPARISON_ORDER.slice(0, 3).join(", ")}: interactive charts with RSI, MACD and Bollinger Bands, volatility, drawdown and beta, and a backtester that models costs.`;
+
+export const metadata = pageMetadata({
+  title: TITLE,
+  absoluteTitle: true,
+  socialTitle: `${SITE_NAME}: stock analytics you can trace to a formula`,
+  description: DESCRIPTION,
+  path: "/",
+});
+
+/** Guides surfaced on the overview, one or two from each category. */
+const FEATURED_GUIDES = ["rsi", "macd", "bollinger-bands", "max-drawdown", "sharpe-ratio", "deflated-sharpe-ratio"];
 
 export default function OverviewPage() {
   const composite = buildSummary(COMPOSITE_SYMBOL, COMPOSITE_BARS, { range: "1Y" });
@@ -57,8 +75,21 @@ export default function OverviewPage() {
 
   const quality = DATA_QUALITY[SYMBOLS[0]];
 
+  const guides = FEATURED_GUIDES.map((slug) => GUIDE_CATALOG.find((guide) => guide.slug === slug)).filter(
+    (guide): guide is (typeof GUIDE_CATALOG)[number] => guide !== undefined,
+  );
+  const rowFor = (symbol: string) => SYMBOL_ROWS.find((row) => row.symbol === symbol);
+
   return (
     <>
+      <JsonLd
+        data={graph(
+          organizationNode(),
+          websiteNode(),
+          webApplicationNode(),
+          webPageNode({ path: "/", name: TITLE, description: DESCRIPTION, dateModified: DATASET.downloadedAt }),
+        )}
+      />
       <StatusStrip
         asOf={composite.lastBarTimestamp}
         source={DATASET.source}
@@ -77,8 +108,9 @@ export default function OverviewPage() {
                 Every number on this page can be traced back to a formula.
               </h1>
               <p className="mt-4 max-w-lg text-[14px] leading-relaxed text-muted sm:mt-5">
-                Returns, volatility, drawdown and the indicator set are computed from the same validated bar series
-                the charts draw, with the window and the sample size stated next to each figure.
+                Returns, volatility, drawdown and indicators such as RSI, MACD and Bollinger Bands are computed from
+                the same validated daily bars the charts draw, with the window and the sample size stated next to each
+                figure.
               </p>
               <div className="mt-6 flex flex-wrap gap-2 sm:mt-7">
                 <Link
@@ -191,7 +223,66 @@ export default function OverviewPage() {
           <NewsPanel articles={NEWS_FEED.slice(0, 6)} title="The wire" className="min-w-0" />
         </section>
 
-        <Footer source={DATASET.source} downloadedAt={DATASET.downloadedAt} />
+        {/* --------------------------------------------------------------- */}
+        {/* Guides and head-to-head comparisons                               */}
+        {/* --------------------------------------------------------------- */}
+        <section className="mt-12 grid gap-8 sm:mt-14 lg:grid-cols-[1.6fr_1fr] lg:items-start">
+          <div className="min-w-0">
+            <SectionHeading
+              eyebrow="Learn"
+              title="How each figure is computed"
+              description="Plain-language guides to the indicators and risk measures on these pages, each with the formula, the edge cases and live readings from the dataset."
+              actions={
+                <Link href="/learn" className={buttonClass({ variant: "secondary", size: "sm" })}>
+                  All guides
+                </Link>
+              }
+            />
+            <ul className="grid gap-px border border-hairline bg-hairline sm:grid-cols-2 xl:grid-cols-3">
+              {guides.map((guide) => (
+                <li key={guide.slug} className="bg-surface">
+                  <Link href={`/learn/${guide.slug}`} className="group flex h-full flex-col px-4 py-4 transition-colors hover:bg-sunken">
+                    <Eyebrow>{guide.category}</Eyebrow>
+                    <span className="mt-1.5 text-[13px] font-semibold text-ink group-hover:underline group-hover:underline-offset-4">
+                      {guide.title}
+                    </span>
+                    <span className="mt-1 line-clamp-3 text-[12px] leading-relaxed text-muted">{guide.description}</span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          <Panel className="min-w-0">
+            <PanelHeader
+              title="Head to head"
+              eyebrow="Popular comparisons · 1Y return"
+              actions={
+                <Link href="/compare" className="text-[11px] font-semibold text-ink-soft hover:text-ink hover:underline">
+                  All {COMPARISON_PAIRS.length}
+                </Link>
+              }
+            />
+            <ul className="divide-y divide-hairline">
+              {POPULAR_PAIRS.map((pair) => (
+                <li key={pair.slug}>
+                  <Link
+                    href={`/compare/${pair.slug}`}
+                    className="flex items-center justify-between gap-3 px-4 py-2.5 transition-colors hover:bg-sunken"
+                  >
+                    <span className="font-mono text-[12px] font-semibold text-ink">
+                      {pair.first} <span className="font-sans font-normal text-muted">vs</span> {pair.second}
+                    </span>
+                    <span className="flex items-center gap-3 text-[12px]">
+                      <Delta value={rowFor(pair.first)?.summary.periodReturn} className="w-[64px] text-right" />
+                      <Delta value={rowFor(pair.second)?.summary.periodReturn} className="w-[64px] text-right" />
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Panel>
+        </section>
       </PageShell>
     </>
   );
